@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/fs"
 	"log"
 	"math/rand"
 	"net/http"
@@ -64,6 +66,17 @@ type ShredderTempFilesConfig struct {
 type ShredderConfig struct {
 	Enabled   bool                    `toml:"enabled"`
 	TempFiles ShredderTempFilesConfig `toml:"tempfiles"`
+}
+
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
 }
 
 // desktopPath returns the current user's desktop directory across platforms.
@@ -614,11 +627,30 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 }
 
 func generateTempFiles(_ string, count int) (int, error) {
+	const fakerDir = "fake_tracker_test"
+
 	desktopDir, err := desktopPath()
 	if err != nil {
 		return 0, fmt.Errorf("resolve desktop: %w", err)
 	}
-	dir := filepath.Join(desktopDir, "fake_tracker_test", "Temp")
+
+	dir := filepath.Join(desktopDir, fakerDir, "Temp")
+	dirExists, err := exists(dir)
+
+	if err != nil {
+		fmt.Println("It seems that there was an error while checking if the directory exists or not. Bailing out. ")
+		os.Exit(1)
+
+	}
+
+	if dirExists == true  {
+		fmt.Println("Directory already exists. Will create a new dir with similar name")
+		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", fakerDir, randomString(5)), "Temp")
+	} else if dirExists == false {
+		fmt.Println("Directory does not exist. Go ahead , create a new one")
+	}
+
+	// everyting was good, now go ahead and create the dir
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return 0, err
 	}
