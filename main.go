@@ -1,26 +1,22 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"io/fs"
 	"log"
 	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/gj1118/faker/helpers"
 	_ "modernc.org/sqlite"
 )
 
@@ -68,86 +64,12 @@ type ShredderConfig struct {
 	TempFiles ShredderTempFilesConfig `toml:"tempfiles"`
 }
 
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	return false, err
-}
-
-// desktopPath returns the current user's desktop directory across platforms.
-func desktopPath() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	switch runtime.GOOS {
-	case "windows":
-		// Respect a custom desktop location set via the registry / shell folder env.
-		if p := os.Getenv("USERPROFILE"); p != "" {
-			return filepath.Join(p, "Desktop"), nil
-		}
-		return filepath.Join(home, "Desktop"), nil
-	default:
-		// macOS and Linux both use ~/Desktop by convention.
-		return filepath.Join(home, "Desktop"), nil
-	}
-}
-
-// chromeDefaultPaths returns (executablePath, profileDir) for the current OS.
-func chromeDefaultPaths() (exePath, profileDir string) {
-	home, _ := os.UserHomeDir()
-	switch runtime.GOOS {
-	case "darwin":
-		candidate := "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-		if _, err := os.Stat(candidate); err == nil {
-			exePath = candidate
-		}
-		profileDir = filepath.Join(home, "Library", "Application Support", "Google", "Chrome", "Default")
-	case "windows":
-		// Try standard Program Files locations via environment variables
-		for _, base := range []string{
-			os.Getenv("ProgramFiles"),
-			os.Getenv("ProgramFiles(x86)"),
-			os.Getenv("LOCALAPPDATA"),
-		} {
-			if base == "" {
-				continue
-			}
-			candidate := filepath.Join(base, "Google", "Chrome", "Application", "chrome.exe")
-			if _, err := os.Stat(candidate); err == nil {
-				exePath = candidate
-				break
-			}
-		}
-		profileDir = filepath.Join(os.Getenv("LOCALAPPDATA"), "Google", "Chrome", "User Data", "Default")
-	default:
-		// Linux fallback
-		for _, p := range []string{
-			"/usr/bin/google-chrome",
-			"/usr/bin/google-chrome-stable",
-			"/usr/bin/chromium-browser",
-		} {
-			if _, err := os.Stat(p); err == nil {
-				exePath = p
-				break
-			}
-		}
-		profileDir = filepath.Join(home, ".config", "google-chrome", "Default")
-	}
-	return
-}
-
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
 func chromeExePath(cfg ChromeConfig) string {
 	if cfg.ExePath != "" {
 		return cfg.ExePath
 	}
-	exePath, _ := chromeDefaultPaths()
+	exePath, _ := helpers.ChromeDefaultPaths()
 	return exePath
 }
 
@@ -156,53 +78,8 @@ func chromeProfileDir(cfg ChromeConfig) string {
 	if cfg.ProfileDir != "" {
 		return cfg.ProfileDir
 	}
-	_, profileDir := chromeDefaultPaths()
+	_, profileDir := helpers.ChromeDefaultPaths()
 	return profileDir
-}
-
-// isChromeRunning returns true if a Chrome process is currently running.
-func isChromeRunning() bool {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("pgrep", "-x", "Google Chrome")
-	case "windows":
-		cmd = exec.Command("tasklist", "/FI", "IMAGENAME eq chrome.exe", "/NH")
-	default:
-		cmd = exec.Command("pgrep", "-x", "chrome")
-	}
-	out, _ := cmd.Output()
-	if runtime.GOOS == "windows" {
-		return strings.Contains(strings.ToLower(string(out)), "chrome.exe")
-	}
-	return strings.TrimSpace(string(out)) != ""
-}
-
-// waitForChromeToClose blocks until Chrome is no longer running,
-// prompting the user to close it first.
-func waitForChromeToClose() {
-	if !isChromeRunning() {
-		return
-	}
-	fmt.Println()
-	fmt.Println("WARNING: Google Chrome is currently running.")
-	fmt.Println("Please close Chrome completely, then press Enter to continue (or Ctrl+C to abort).")
-	scanner := bufio.NewScanner(os.Stdin)
-	for {
-		scanner.Scan()
-		if !isChromeRunning() {
-			fmt.Println("Chrome is now closed. Proceeding...")
-			return
-		}
-		fmt.Println("Chrome is still running. Please close it and press Enter again.")
-	}
-}
-
-// toWebKitTime converts a Go time to Chrome's WebKit timestamp format
-// (microseconds elapsed since Jan 1, 1601).
-func toWebKitTime(t time.Time) int64 {
-	const epochDelta = 11644473600 * 1_000_000 // microseconds
-	return t.UnixMicro() + epochDelta
 }
 
 func loadConfig(path string) (Config, error) {
@@ -501,8 +378,8 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 	now := time.Now()
 	inserted := 0
 	for range count {
-		creationUtc := toWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
-		expiresUtc := toWebKitTime(now.Add(time.Duration(rand.Intn(365*24)) * time.Hour))
+		creationUtc := helpers.ToWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
+		expiresUtc := helpers.ToWebKitTime(now.Add(time.Duration(rand.Intn(365*24)) * time.Hour))
 		_, err := db.Exec(`INSERT OR IGNORE INTO cookies
 			(creation_utc, host_key, top_frame_site_key, name, value, encrypted_value,
 			 path, expires_utc, is_secure, is_httponly, last_access_utc,
@@ -516,7 +393,7 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 			rand.Intn(2),
 			rand.Intn(2),
 			creationUtc,
-			toWebKitTime(now),
+			helpers.ToWebKitTime(now),
 		)
 		if err != nil {
 			return inserted, fmt.Errorf("insert cookie: %w", err)
@@ -588,7 +465,7 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 	for range count {
 		base := historyURLs[rand.Intn(len(historyURLs))]
 		url := fmt.Sprintf("%s%s&t=%d", base, randomString(12), rand.Intn(99999))
-		visitTime := toWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
+		visitTime := helpers.ToWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
 
 		res, err := db.Exec(`INSERT INTO urls (url, title, visit_count, typed_count, last_visit_time, hidden)
 			VALUES (?, 'Tracking Request', ?, 0, ?, 0)`,
@@ -629,13 +506,13 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 func generateTempFiles(_ string, count int) (int, error) {
 	const fakerDir = "fake_tracker_test"
 
-	desktopDir, err := desktopPath()
+	desktopDir, err := helpers.DesktopPath()
 	if err != nil {
 		return 0, fmt.Errorf("resolve desktop: %w", err)
 	}
 
 	dir := filepath.Join(desktopDir, fakerDir, "Temp")
-	dirExists, err := exists(dir)
+	dirExists, err := helpers.Exists(dir)
 
 	if err != nil {
 		fmt.Println("It seems that there was an error while checking if the directory exists or not. Bailing out. ")
@@ -643,10 +520,11 @@ func generateTempFiles(_ string, count int) (int, error) {
 
 	}
 
-	if dirExists == true  {
+	switch dirExists {
+	case true:
 		fmt.Println("Directory already exists. Will create a new dir with similar name")
 		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", fakerDir, randomString(5)), "Temp")
-	} else if dirExists == false {
+	case false:
 		fmt.Println("Directory does not exist. Go ahead , create a new one")
 	}
 
@@ -813,7 +691,7 @@ func main() {
 	}
 
 	// Ensure Chrome is closed before touching its databases
-	waitForChromeToClose()
+	helpers.WaitForChromeToClose()
 
 	total := 0
 	total += run("Chrome cookies (SQLite)", cfg.Cookies.Enabled, cfg.Cookies.Count, generateChromeCookies, profileDir)
