@@ -278,48 +278,14 @@ func loremDocument() string {
 	return strings.Join(out, "\n\n")
 }
 
-// trashDir returns the OS trash / recycle-bin directory.
-func trashDir() (string, error) {
-	switch runtime.GOOS {
-	case "darwin":
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		return filepath.Join(home, ".Trash"), nil
-	case "windows":
-		return filepath.Join(os.TempDir(), "faker_trash_stage"), nil
-	default:
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", err
-		}
-		dir := filepath.Join(home, ".local", "share", "Trash", "files")
-		return dir, nil
-	}
-}
-
 var trashExts = []string{".txt", ".log", ".tmp", ".bak", ".doc", ".csv"}
 
 func generateTrashFiles(_ string, count int) (int, error) {
-	tDir, err := trashDir()
-	if err != nil {
-		return 0, fmt.Errorf("resolve trash dir: %w", err)
-	}
-
-	isWindows := runtime.GOOS == "windows"
-	var destDir string
-	if isWindows {
-		destDir = filepath.Join(os.TempDir(), "faker_trash_stage")
-		if err := os.MkdirAll(destDir, 0755); err != nil {
-			return 0, err
-		}
-		defer os.RemoveAll(destDir)
-	} else {
-		if err := os.MkdirAll(tDir, 0700); err != nil {
-			return 0, err
-		}
-		destDir = tDir
+	// Write files to a staging directory on all platforms; Phase 2 moves each
+	// file to the OS recycle bin / trash using the appropriate native API.
+	destDir := filepath.Join(os.TempDir(), "faker_trash_stage")
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return 0, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -399,59 +365,58 @@ func generateTrashFiles(_ string, count int) (int, error) {
 		return inserted, ctx.Err()
 	}
 
-	// --- Phase 2 (Windows only): delete staged files using Go ---
-	if isWindows {
-		const delWorkers = 8
-		delJobs := make(chan string, delWorkers)
+	// --- Phase 2: move staged files to the OS recycle bin / trash ---
+	const delWorkers = 8
+	delJobs := make(chan string, delWorkers)
 
-		var delWg sync.WaitGroup
-		var delFirstErr error
-		var delErrMu sync.Mutex
-		deleted := 0
-		var deletedMu sync.Mutex
+	var delWg sync.WaitGroup
+	var delFirstErr error
+	var delErrMu sync.Mutex
+	deleted := 0
+	var deletedMu sync.Mutex
 
-		for range delWorkers {
-			delWg.Add(1)
-			go func() {
-				defer delWg.Done()
-				for f := range delJobs {
-					if ctx.Err() != nil {
-						return
-					}
-					if rerr := os.Remove(f); rerr != nil {
-						delErrMu.Lock()
-						if delFirstErr == nil {
-							delFirstErr = rerr
-						}
-						delErrMu.Unlock()
-						return
-					}
-					deletedMu.Lock()
-					deleted++
-					printTrashProgress("Deleting files", deleted, len(paths))
-					deletedMu.Unlock()
-				}
-			}()
-		}
-
+	for range delWorkers {
+		delWg.Add(1)
 		go func() {
-			defer close(delJobs)
-			for _, f := range paths {
-				select {
-				case delJobs <- f:
-				case <-ctx.Done():
+			defer delWg.Done()
+			for f := range delJobs {
+				if ctx.Err() != nil {
 					return
 				}
+				if rerr := moveToRecycleBin(f); rerr != nil {
+					delErrMu.Lock()
+					if delFirstErr == nil {
+						delFirstErr = rerr
+					}
+					delErrMu.Unlock()
+					return
+				}
+				deletedMu.Lock()
+				deleted++
+				printTrashProgress("Moving to trash", deleted, len(paths))
+				deletedMu.Unlock()
 			}
 		}()
-
-		delWg.Wait()
-		fmt.Println()
-
-		if delFirstErr != nil {
-			return 0, delFirstErr
-		}
 	}
+
+	go func() {
+		defer close(delJobs)
+		for _, f := range paths {
+			select {
+			case delJobs <- f:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
+	delWg.Wait()
+	fmt.Println()
+
+	if delFirstErr != nil {
+		return 0, delFirstErr
+	}
+	_ = os.Remove(destDir) // remove the now-empty staging dir
 
 	return inserted, nil
 }
