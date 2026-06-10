@@ -1,0 +1,60 @@
+[output]
+# Base directory where fake_tracker_test/ folder will be created
+# Leave as "." to use the current working directory
+base_dir = "."
+
+[chrome]
+# Path to the Chrome executable. Leave empty to auto-detect.
+# Windows example: exe_path = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
+exe_path = ""
+# Path to Chrome's Default profile directory. Leave empty to auto-detect.
+# Windows example: profile_dir = 'C:\Users\<YourName>\AppData\Local\Google\Chrome\User Data\Default'
+profile_dir = ""
+
+#Tracker remocver entries
+[cookies]
+enabled = true
+count = 150
+
+[cache]
+enabled = true
+count = 150
+
+[history]
+enabled = true
+count = 100
+
+[temp_files]
+enabled = true
+count = 60
+
+[registry]
+enabled = true
+count = 50
+
+#recycle bin (windows)/trash(mac) , linux - who cares ?? ;) 
+[trash]
+enabled = true
+# Number of Lorem Ipsum files to create in Trash (macOS) / Recycle Bin (Windows)
+count = 1000
+
+# Shredder entries
+[shredder]
+enabled = true
+
+[shredder.tempfiles]
+count = 60
+
+
+[firewall]
+enabled = true
+sites = [
+  "rep-highrisk.testingmcafeesites.com",
+  "rep-yellow.testingmcafeesites.com",
+  "p.wuporg.com",
+  "justid.io",
+  "tzegilo.com"
+]
+call_times= 5
+
+
