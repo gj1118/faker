@@ -66,6 +66,25 @@ type ShredderConfig struct {
 	TempFiles ShredderTempFilesConfig `toml:"tempfiles"`
 }
 
+// desktopPath returns the current user's desktop directory across platforms.
+func desktopPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	switch runtime.GOOS {
+	case "windows":
+		// Respect a custom desktop location set via the registry / shell folder env.
+		if p := os.Getenv("USERPROFILE"); p != "" {
+			return filepath.Join(p, "Desktop"), nil
+		}
+		return filepath.Join(home, "Desktop"), nil
+	default:
+		// macOS and Linux both use ~/Desktop by convention.
+		return filepath.Join(home, "Desktop"), nil
+	}
+}
+
 // chromeDefaultPaths returns (executablePath, profileDir) for the current OS.
 func chromeDefaultPaths() (exePath, profileDir string) {
 	home, _ := os.UserHomeDir()
@@ -594,8 +613,12 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 	return n, nil
 }
 
-func generateTempFiles(baseDir string, count int) (int, error) {
-	dir := filepath.Join(baseDir, "fake_tracker_test", "Temp")
+func generateTempFiles(_ string, count int) (int, error) {
+	desktopDir, err := desktopPath()
+	if err != nil {
+		return 0, fmt.Errorf("resolve desktop: %w", err)
+	}
+	dir := filepath.Join(desktopDir, "fake_tracker_test", "Temp")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return 0, err
 	}
