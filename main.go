@@ -10,12 +10,13 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"strings"
+
 	"sync"
 	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/gj1118/faker/constants"
 	"github.com/gj1118/faker/helpers"
 	_ "modernc.org/sqlite"
 )
@@ -98,97 +99,6 @@ func loadConfig(path string) (Config, error) {
 	return cfg, nil
 }
 
-var trackerDomains = []string{
-	"doubleclick.net", "google-analytics.com", "facebook.com", "ads.twitter.com",
-	"scorecardresearch.com", "quantserve.com", "adnxs.com", "rubiconproject.com",
-	"pubmatic.com", "openx.net", "adsrvr.org", "casalemedia.com",
-	"advertising.com", "amazon-adsystem.com", "criteo.com", "bing.com",
-	"taboola.com", "outbrain.com", "spotxchange.com", "sharethrough.com",
-	"moatads.com", "chartbeat.com", "newrelic.com", "mixpanel.com",
-	"segment.io", "hotjar.com", "optimizely.com", "mopub.com",
-	"rlcdn.com", "demdex.net", "bluekai.com", "krxd.net",
-}
-
-var cookieNames = []string{
-	"_ga", "_gid", "_fbp", "_gcl_au", "IDE", "ANID", "NID",
-	"SID", "SSID", "APISID", "SAPISID", "uid", "uuid", "visitor_id",
-	"tracking_id", "sess_id", "ad_id", "cid", "c_user", "xs",
-	"fr", "datr", "spin", "wd", "act", "presence",
-}
-
-var tempFilePatterns = []string{
-	"tmp_track_%d.dat", "cache_%d.bin", "sess_%d.tmp", "ad_cache_%d.tmp",
-	"pixel_%d.gif.tmp", "beacon_%d.dat", "sync_%d.tmp", "uid_%d.dat",
-}
-
-var historyURLs = []string{
-	"https://www.googleadservices.com/pagead/aclk?sa=L&ai=",
-	"https://pixel.facebook.com/tr?id=",
-	"https://sync.criteo.com/sync?p=",
-	"https://cm.g.doubleclick.net/pixel?google_nid=",
-	"https://ib.adnxs.com/getuid?",
-	"https://sync.rubiconproject.com/usync?p=",
-	"https://x.bidswitch.net/sync?ssp=",
-	"https://match.adsrvr.org/track/cmf/generic?ttd_pid=",
-	"https://ups.analytics.yahoo.com/ups/",
-	"https://s.amazon-adsystem.com/iu3?pid=",
-}
-
-func randomString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
-}
-
-func randomTimestamp() string {
-	t := time.Now().Add(-time.Duration(rand.Intn(30*24)) * time.Hour)
-	return t.Format("2006-01-02T15:04:05Z")
-}
-
-func pickDomain() string { return trackerDomains[rand.Intn(len(trackerDomains))] }
-
-var loremWords = strings.Fields(
-	"lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt" +
-		" ut labore et dolore magna aliqua ut enim ad minim veniam quis nostrud exercitation ullamco" +
-		" laboris nisi ut aliquip ex ea commodo consequat duis aute irure dolor in reprehenderit in" +
-		" voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat" +
-		" non proident sunt in culpa qui officia deserunt mollit anim id est laborum")
-
-func loremSentence(words int) string {
-	parts := make([]string, words)
-	for i := range parts {
-		w := loremWords[rand.Intn(len(loremWords))]
-		if i == 0 {
-			w = strings.ToUpper(w[:1]) + w[1:]
-		}
-		parts[i] = w
-	}
-	return strings.Join(parts, " ") + "."
-}
-
-func loremParagraph() string {
-	sentences := rand.Intn(5) + 3
-	out := make([]string, sentences)
-	for i := range out {
-		out[i] = loremSentence(rand.Intn(12) + 5)
-	}
-	return strings.Join(out, " ")
-}
-
-func loremDocument() string {
-	paras := rand.Intn(6) + 3
-	out := make([]string, paras)
-	for i := range out {
-		out[i] = loremParagraph()
-	}
-	return strings.Join(out, "\n\n")
-}
-
-var trashExts = []string{".txt", ".log", ".tmp", ".bak", ".doc", ".csv"}
-
 func generateTrashFiles(_ string, count int) (int, error) {
 	// Write files to a staging directory on all platforms; Phase 2 moves each
 	// file to the OS recycle bin / trash using the appropriate native API.
@@ -227,10 +137,10 @@ func generateTrashFiles(_ string, count int) (int, error) {
 		go func() {
 			defer wg.Done()
 			for idx := range jobs {
-				ext := trashExts[rand.Intn(len(trashExts))]
-				name := fmt.Sprintf("deleted_%s_%d%s", randomString(8), idx, ext)
+				ext := constants.TrashExts[rand.Intn(len(constants.TrashExts))]
+				name := fmt.Sprintf("deleted_%s_%d%s", helpers.RandomString(8), idx, ext)
 				fpath := filepath.Join(destDir, name)
-				if werr := os.WriteFile(fpath, []byte(loremDocument()), 0644); werr != nil {
+				if werr := os.WriteFile(fpath, []byte(helpers.LoremDocument()), 0644); werr != nil {
 					results <- writeResult{err: werr}
 					return
 				}
@@ -266,7 +176,7 @@ func generateTrashFiles(_ string, count int) (int, error) {
 		}
 		inserted++
 		paths = append(paths, res.path)
-		printTrashProgress("Writing files", inserted, count)
+		helpers.PrintTrashProgress("Writing files", inserted, count)
 	}
 	fmt.Println()
 
@@ -302,7 +212,7 @@ func generateTrashFiles(_ string, count int) (int, error) {
 				}
 				deletedMu.Lock()
 				deleted++
-				printTrashProgress("Moving to trash", deleted, len(paths))
+				helpers.PrintTrashProgress("Moving to trash", deleted, len(paths))
 				deletedMu.Unlock()
 			}
 		}()
@@ -328,16 +238,6 @@ func generateTrashFiles(_ string, count int) (int, error) {
 	_ = os.Remove(destDir) // remove the now-empty staging dir
 
 	return inserted, nil
-}
-
-func printTrashProgress(label string, done, total int) {
-	if total == 0 {
-		return
-	}
-	const width = 30
-	filled := done * width / total
-	bar := strings.Repeat("#", filled) + strings.Repeat("-", width-filled)
-	fmt.Printf("\r    %-25s [%s] %d/%d", label, bar, done, total)
 }
 
 func generateChromeCookies(profileDir string, count int) (int, error) {
@@ -386,9 +286,9 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 			 has_expires, is_persistent, priority, samesite, source_scheme, source_port, last_update_utc)
 			VALUES (?, ?, '', ?, ?, '', '/', ?, ?, ?, ?, 1, 1, 1, -1, 2, 443, ?)`,
 			creationUtc,
-			"."+pickDomain(),
-			cookieNames[rand.Intn(len(cookieNames))],
-			randomString(32),
+			"."+helpers.PickDomain(),
+			constants.CookieNames[rand.Intn(len(constants.CookieNames))],
+			helpers.RandomString(32),
 			expiresUtc,
 			rand.Intn(2),
 			rand.Intn(2),
@@ -414,7 +314,7 @@ func generateChromeCache(profileDir string, count int) (int, error) {
 		fpath := filepath.Join(dir, fmt.Sprintf("%016x_%d", rand.Int63(), i))
 		content := fmt.Sprintf(
 			"HTTP/1.1 200 OK\r\nContent-Type: image/gif\r\nSet-Cookie: uid=%s; Domain=.%s; Path=/\r\n\r\nGIF89a fake tracking pixel data %s",
-			randomString(16), pickDomain(), randomString(64),
+			helpers.RandomString(16), helpers.PickDomain(), helpers.RandomString(64),
 		)
 		if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
 			return i, err
@@ -463,8 +363,8 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 	now := time.Now()
 	inserted := 0
 	for range count {
-		base := historyURLs[rand.Intn(len(historyURLs))]
-		url := fmt.Sprintf("%s%s&t=%d", base, randomString(12), rand.Intn(99999))
+		base := constants.HistoryURLs[rand.Intn(len(constants.HistoryURLs))]
+		url := fmt.Sprintf("%s%s&t=%d", base, helpers.RandomString(12), rand.Intn(99999))
 		visitTime := helpers.ToWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
 
 		res, err := db.Exec(`INSERT INTO urls (url, title, visit_count, typed_count, last_visit_time, hidden)
@@ -523,7 +423,7 @@ func generateTempFiles(_ string, count int) (int, error) {
 	switch dirExists {
 	case true:
 		fmt.Println("Directory already exists. Will create a new dir with similar name")
-		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", fakerDir, randomString(5)), "Temp")
+		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", fakerDir, helpers.RandomString(5)), "Temp")
 	case false:
 		fmt.Println("Directory does not exist. Go ahead , create a new one")
 	}
@@ -533,10 +433,10 @@ func generateTempFiles(_ string, count int) (int, error) {
 		return 0, err
 	}
 	for i := range count {
-		pattern := tempFilePatterns[rand.Intn(len(tempFilePatterns))]
+		pattern := constants.TempFilePatterns[rand.Intn(len(constants.TempFilePatterns))]
 		content := fmt.Sprintf(
 			"tracker_origin=%s\nsession_id=%s\nuid=%s\ntimestamp=%s\npayload=%s\n",
-			pickDomain(), randomString(24), randomString(16), randomTimestamp(), randomString(128),
+			helpers.PickDomain(), helpers.RandomString(24), helpers.RandomString(16), helpers.RandomTimestamp(), helpers.RandomString(128),
 		)
 		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf(pattern, i)), []byte(content), 0644); err != nil {
 			return i, err
@@ -560,9 +460,9 @@ func generateRegistryEntries(baseDir string, count int) (int, error) {
 	fmt.Fprintln(f)
 
 	for range count {
-		fmt.Fprintf(f, "[HKEY_CURRENT_USER\\Software\\Microsoft\\Internet Explorer\\LowRegistry\\DOMStorage\\%s]\n", pickDomain())
-		fmt.Fprintf(f, "\"tracking_id\"=\"%s\"\n", randomString(32))
-		fmt.Fprintf(f, "\"last_seen\"=\"%s\"\n", randomTimestamp())
+		fmt.Fprintf(f, "[HKEY_CURRENT_USER\\Software\\Microsoft\\Internet Explorer\\LowRegistry\\DOMStorage\\%s]\n", helpers.PickDomain())
+		fmt.Fprintf(f, "\"tracking_id\"=\"%s\"\n", helpers.RandomString(32))
+		fmt.Fprintf(f, "\"last_seen\"=\"%s\"\n", helpers.RandomTimestamp())
 		fmt.Fprintf(f, "\"visit_count\"=dword:%08x\n\n", rand.Intn(9999))
 	}
 	return count, nil
@@ -594,7 +494,7 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 	for i := range count {
 		size := shredderFileSizes[rand.Intn(len(shredderFileSizes))]
 		ext := exts[rand.Intn(len(exts))]
-		name := fmt.Sprintf("shred_%s_%d%s", randomString(8), i, ext)
+		name := fmt.Sprintf("shred_%s_%d%s", helpers.RandomString(8), i, ext)
 		fpath := filepath.Join(dir, name)
 
 		f, err := os.Create(fpath)
@@ -620,22 +520,6 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 		f.Close()
 	}
 	return count, nil
-}
-
-// simple , yet holistic task runner, lol
-func run(label string, enabled bool, count int, fn func(string, int) (int, error), baseDir string) int {
-	if !enabled {
-		fmt.Printf("  %-40s skipped (disabled in config)\n", label)
-		return 0
-	}
-	fmt.Printf("  %-40s ", label)
-	n, err := fn(baseDir, count)
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		return 0
-	}
-	fmt.Printf("done (%d)\n", n)
-	return n
 }
 
 func main() {
@@ -694,14 +578,14 @@ func main() {
 	helpers.WaitForChromeToClose()
 
 	total := 0
-	total += run("Chrome cookies (SQLite)", cfg.Cookies.Enabled, cfg.Cookies.Count, generateChromeCookies, profileDir)
-	total += run("Chrome cache files", cfg.Cache.Enabled, cfg.Cache.Count, generateChromeCache, profileDir)
-	total += run("Chrome history (SQLite)", cfg.History.Enabled, cfg.History.Count, generateChromeHistory, profileDir)
-	total += run("Temp / junk files", cfg.TempFiles.Enabled, cfg.TempFiles.Count, generateTempFiles, cfg.Output.BaseDir)
-	total += run("Registry tracker entries", cfg.Registry.Enabled, cfg.Registry.Count, generateRegistryEntries, cfg.Output.BaseDir)
-	total += run("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles, "")
-	total += run("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles, cfg.Output.BaseDir)
-	total += run("Firewall traffic generation", cfg.Firewall.Enabled, cfg.Firewall.CallTimes, generateFirewallTraffic, "")
+	total += helpers.Run("Chrome cookies (SQLite)", cfg.Cookies.Enabled, cfg.Cookies.Count, generateChromeCookies, profileDir)
+	total += helpers.Run("Chrome cache files", cfg.Cache.Enabled, cfg.Cache.Count, generateChromeCache, profileDir)
+	total += helpers.Run("Chrome history (SQLite)", cfg.History.Enabled, cfg.History.Count, generateChromeHistory, profileDir)
+	total += helpers.Run("Temp / junk files", cfg.TempFiles.Enabled, cfg.TempFiles.Count, generateTempFiles, cfg.Output.BaseDir)
+	total += helpers.Run("Registry tracker entries", cfg.Registry.Enabled, cfg.Registry.Count, generateRegistryEntries, cfg.Output.BaseDir)
+	total += helpers.Run("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles, "")
+	total += helpers.Run("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles, cfg.Output.BaseDir)
+	total += helpers.Run("Firewall traffic generation", cfg.Firewall.Enabled, cfg.Firewall.CallTimes, generateFirewallTraffic, "")
 
 	fmt.Printf("\n✓ Total entries / files generated: %d\n", total)
 	fmt.Printf("✓ Chrome data written to: %s\n", profileDir)

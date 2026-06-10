@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/gj1118/faker/constants"
 )
 
 func Exists(path string) (bool, error) {
@@ -24,6 +27,61 @@ func Exists(path string) (bool, error) {
 	return false, err
 }
 
+func PickDomain() string { return constants.TrackerDomains[rand.Intn(len(constants.TrackerDomains))] }
+
+func PrintTrashProgress(label string, done, total int) {
+	if total == 0 {
+		return
+	}
+	const width = 30
+	filled := done * width / total
+	bar := strings.Repeat("#", filled) + strings.Repeat("-", width-filled)
+	fmt.Printf("\r    %-25s [%s] %d/%d", label, bar, done, total)
+}
+
+func loremSentence(words int) string {
+	parts := make([]string, words)
+	for i := range parts {
+		w := constants.LoremWords[rand.Intn(len(constants.LoremWords))]
+		if i == 0 {
+			w = strings.ToUpper(w[:1]) + w[1:]
+		}
+		parts[i] = w
+	}
+	return strings.Join(parts, " ") + "."
+}
+
+func loremParagraph() string {
+	sentences := rand.Intn(5) + 3
+	out := make([]string, sentences)
+	for i := range out {
+		out[i] = loremSentence(rand.Intn(12) + 5)
+	}
+	return strings.Join(out, " ")
+}
+
+func LoremDocument() string {
+	paras := rand.Intn(6) + 3
+	out := make([]string, paras)
+	for i := range out {
+		out[i] = loremParagraph()
+	}
+	return strings.Join(out, "\n\n")
+}
+
+func RandomString(n int) string {
+	const letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(b)
+}
+
+func RandomTimestamp() string {
+	t := time.Now().Add(-time.Duration(rand.Intn(30*24)) * time.Hour)
+	return t.Format("2006-01-02T15:04:05Z")
+}
 
 // desktopPath returns the current user's desktop directory across platforms.
 func DesktopPath() (string, error) {
@@ -88,8 +146,6 @@ func ChromeDefaultPaths() (exePath, profileDir string) {
 	return
 }
 
-
-
 // waitForChromeToClose blocks until Chrome is no longer running,
 // prompting the user to close it first.
 func WaitForChromeToClose() {
@@ -117,10 +173,24 @@ func ToWebKitTime(t time.Time) int64 {
 	return t.UnixMicro() + epochDelta
 }
 
+// simple , yet holistic task runner, lol
+func Run(label string, enabled bool, count int, fn func(string, int) (int, error), baseDir string) int {
+	if !enabled {
+		fmt.Printf("  %-40s skipped (disabled in config)\n", label)
+		return 0
+	}
+	fmt.Printf("  %-40s ", label)
+	n, err := fn(baseDir, count)
+	if err != nil {
+		fmt.Printf("ERROR: %v\n", err)
+		return 0
+	}
+	fmt.Printf("done (%d)\n", n)
+	return n
+}
 
 // local helpers
 
-//
 // isChromeRunning returns true if a Chrome process is currently running.
 func isChromeRunning() bool {
 	var cmd *exec.Cmd
@@ -138,4 +208,3 @@ func isChromeRunning() bool {
 	}
 	return strings.TrimSpace(string(out)) != ""
 }
-
