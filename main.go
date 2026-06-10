@@ -22,48 +22,8 @@ import (
 )
 
 var firewallSites []string
+var	cfgPath = "config.toml"
 
-type ChromeConfig struct {
-	ExePath    string `toml:"exe_path"`
-	ProfileDir string `toml:"profile_dir"`
-}
-
-type Config struct {
-	Output    OutputConfig   `toml:"output"`
-	Chrome    ChromeConfig   `toml:"chrome"`
-	Cookies   SectionConfig  `toml:"cookies"`
-	Cache     SectionConfig  `toml:"cache"`
-	History   SectionConfig  `toml:"history"`
-	TempFiles SectionConfig  `toml:"temp_files"`
-	Registry  SectionConfig  `toml:"registry"`
-	Trash     SectionConfig  `toml:"trash"`
-	Shredder  ShredderConfig `toml:"shredder"`
-	Firewall  FirewallConfig `toml:"firewall"`
-}
-
-type FirewallConfig struct {
-	Enabled   bool     `toml:"enabled"`
-	Sites     []string `toml:"sites"`
-	CallTimes int      `toml:"call_times"`
-}
-
-type OutputConfig struct {
-	BaseDir string `toml:"base_dir"`
-}
-
-type SectionConfig struct {
-	Enabled bool `toml:"enabled"`
-	Count   int  `toml:"count"`
-}
-
-type ShredderTempFilesConfig struct {
-	Count int `toml:"count"`
-}
-
-type ShredderConfig struct {
-	Enabled   bool                    `toml:"enabled"`
-	TempFiles ShredderTempFilesConfig `toml:"tempfiles"`
-}
 
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
 func chromeExePath(cfg ChromeConfig) string {
@@ -529,11 +489,7 @@ func main() {
 	fmt.Println("Author - Gagan Janjua")
 	fmt.Println("---Faker deinit---")
 	fmt.Println()
-	
 
-	rand.Seed(time.Now().UnixNano())
-
-	cfgPath := "config.toml"
 	if len(os.Args) > 1 {
 		cfgPath = os.Args[1]
 	}

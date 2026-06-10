@@ -6,14 +6,12 @@ config := "config.toml"
 default:
     @just --list
 
-
 # Run directly with go run (no build step needed)
 run:
     go run . {{config}}
 
 run-config config_path:
     go run . {{config_path}}
-
 
 build:
     @echo "Building for current platform..."
