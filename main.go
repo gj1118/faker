@@ -523,10 +523,13 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 }
 
 func main() {
+	fmt.Println()
 	fmt.Println("---Faker init---")
 	fmt.Println("Will setup your TEST system with fake/bad data, so your security solutions might get to work, otherwise what work do they do ? ;) ")
 	fmt.Println("Author - Gagan Janjua")
 	fmt.Println("---Faker deinit---")
+	fmt.Println()
+	
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -541,7 +544,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println("=== Faker Entry Generator ===")
 	fmt.Printf("Config: %s\n\n", cfgPath)
 
 	// Detect Chrome installation
