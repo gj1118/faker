@@ -22,8 +22,7 @@ import (
 )
 
 var firewallSites []string
-var	cfgPath = "config.toml"
-
+var cfgPath = "config.toml"
 
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
 func chromeExePath(cfg ChromeConfig) string {
@@ -209,7 +208,12 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("open Cookies DB: %w", err)
 	}
-	defer db.Close()
+
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Fatalf("Failed to close database: %v\n", err)
+		}
+	}()
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS cookies (
 		creation_utc       INTEGER NOT NULL,
@@ -292,7 +296,12 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("open History DB: %w", err)
 	}
-	defer db.Close()
+
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Fatalf("Failed to close database: %v\n", err)
+		}
+	}()
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS urls (
 		id              INTEGER PRIMARY KEY,
@@ -356,7 +365,10 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 				fmt.Printf("    [firewall] %s (attempt %d): %v\n", site, i+1, err)
 				continue
 			}
-			resp.Body.Close()
+			err = resp.Body.Close()
+			if err != nil {
+				log.Fatalf("An error occured while generating firewall traffic : %v\n", err)
+			}
 			n++
 		}
 	}
@@ -414,16 +426,21 @@ func generateRegistryEntries(baseDir string, count int) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	defer f.Close()
 
-	fmt.Fprintln(f, "Windows Registry Editor Version 5.00")
-	fmt.Fprintln(f)
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Fatalf("An error happened while writing registry file entries. Error → %v", err)
+		}
+	}()
+
+	_, _ = fmt.Fprintln(f, "Windows Registry Editor Version 5.00")
+	_, _ = fmt.Fprintln(f)
 
 	for range count {
-		fmt.Fprintf(f, "[HKEY_CURRENT_USER\\Software\\Microsoft\\Internet Explorer\\LowRegistry\\DOMStorage\\%s]\n", helpers.PickDomain())
-		fmt.Fprintf(f, "\"tracking_id\"=\"%s\"\n", helpers.RandomString(32))
-		fmt.Fprintf(f, "\"last_seen\"=\"%s\"\n", helpers.RandomTimestamp())
-		fmt.Fprintf(f, "\"visit_count\"=dword:%08x\n\n", rand.Intn(9999))
+		_, _ = fmt.Fprintf(f, "[HKEY_CURRENT_USER\\Software\\Microsoft\\Internet Explorer\\LowRegistry\\DOMStorage\\%s]\n", helpers.PickDomain())
+		_, _ = fmt.Fprintf(f, "\"tracking_id\"=\"%s\"\n", helpers.RandomString(32))
+		_, _ = fmt.Fprintf(f, "\"last_seen\"=\"%s\"\n", helpers.RandomTimestamp())
+		_, _ = fmt.Fprintf(f, "\"visit_count\"=dword:%08x\n\n", rand.Intn(9999))
 	}
 	return count, nil
 }
@@ -472,12 +489,12 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 				buf[j] = byte(rand.Intn(256))
 			}
 			if _, err := f.Write(buf[:n]); err != nil {
-				f.Close()
+				_ = f.Close()
 				return i, err
 			}
 			remaining -= n
 		}
-		f.Close()
+		_ = f.Close()
 	}
 	return count, nil
 }
