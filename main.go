@@ -494,7 +494,9 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 			}
 			remaining -= n
 		}
-		_ = f.Close()
+		if err = f.Close(); err!=nil {
+			log.Fatalf("An error occured while closing the files. Error → %v\n", err)
+		}
 	}
 	return count, nil
 }
