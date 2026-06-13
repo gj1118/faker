@@ -228,7 +228,7 @@ func Run(label string, enabled bool, count int, fn func(string, int) (int, error
 	return n
 }
 
-func RunSimple(label string, enabled bool, count int, fn func(int) (int, error)) int {
+func RunWithoutBaseDir(label string, enabled bool, count int, fn func(int) (int, error)) int {
 	if !enabled {
 		fmt.Printf("  %-40s skipped (disabled in config)\n", label)
 		return 0
