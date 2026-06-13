@@ -393,7 +393,7 @@ func executeVirus(_ int) (int, error) {
 }
 
 func generateTempFiles(count int) (int, error) {
-	tempFilesDir := filepath.Join(config.Output.BaseDir, "TempFiles")
+	tempFilesDir := filepath.Join(config.Output.BaseDir, "Tracker_remover_tempFiles")
 	if err := os.MkdirAll(tempFilesDir, 0755); err != nil {
 		return 0, err
 	}
@@ -537,7 +537,7 @@ func main() {
 	total += helpers.Run("Chrome cookies (SQLite)", cfg.Cookies.Enabled, cfg.Cookies.Count, generateChromeCookies, profileDir)
 	total += helpers.Run("Chrome cache files", cfg.Cache.Enabled, cfg.Cache.Count, generateChromeCache, profileDir)
 	total += helpers.Run("Chrome history (SQLite)", cfg.History.Enabled, cfg.History.Count, generateChromeHistory, profileDir)
-	total += helpers.RunSimple("Temp / junk files", cfg.TempFiles.Enabled, cfg.TempFiles.Count, generateTempFiles)
+	total += helpers.RunSimple("Tracker Remover Temp files", cfg.TempFiles.Enabled, cfg.TempFiles.Count, generateTempFiles)
 	total += helpers.RunSimple("Registry tracker entries", cfg.Registry.Enabled, cfg.Registry.Count, generateRegistryEntries)
 	total += helpers.RunSimple("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles)
 	total += helpers.RunSimple("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles)
