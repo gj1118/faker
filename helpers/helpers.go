@@ -1,11 +1,15 @@
 package helpers
 
 import (
+	"archive/zip"
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
+	"log"
 	"math/rand"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +33,7 @@ func Exists(path string) (bool, error) {
 
 func PickDomain() string { return constants.TrackerDomains[rand.Intn(len(constants.TrackerDomains))] }
 
-func PrintTrashProgress(label string, done, total int) {
+func PrintProgress(label string, done, total int) {
 	if total == 0 {
 		return
 	}
@@ -156,6 +160,11 @@ func WaitForChromeToClose() {
 	fmt.Println("WARNING: Google Chrome is currently running.")
 	fmt.Println("Please close Chrome completely, then press Enter to continue (or Ctrl+C to abort).")
 	scanner := bufio.NewScanner(os.Stdin)
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal("Please close the Chrome browser. We tried and we failed. Apologies. PLease run this script after! If the issues persists, please try restarting your machine")	
+	}
+	
 	for {
 		scanner.Scan()
 		if !isChromeRunning() {
@@ -189,8 +198,45 @@ func Run(label string, enabled bool, count int, fn func(string, int) (int, error
 	return n
 }
 
-// local helpers
+func DownloadEicar() (string, error) {
+	destDir := os.TempDir();
+	zipPath := filepath.Join(destDir, "eicar_com.zip")
+	if err := downloadFile(constants.EICAR_Url, zipPath, "Downloading EICAR"); err != nil {
+		return "", err
+	}
+	return zipPath, nil
+}
 
+func ExtractAndRunEicar(zipPath, destDir string) (string, error) {
+	fmt.Printf("ZipPath %s\n", zipPath)
+	fmt.Printf("Destdir %s\n", destDir)
+	
+	checkedPath, err := extractZip(zipPath, destDir, "Extracting EICAR")
+	fmt.Printf("extractZIP result → Path (%s), error(%v) \n",checkedPath, err)
+
+	// we need to get the parent dir where the extraction of the zip happened
+	parentDir := filepath.Dir(filepath.Clean(checkedPath))
+	virusFileName := filepath.Join(parentDir, constants.EICAR_FILE_NAME)
+	exists, err := Exists(virusFileName)
+
+	if err != nil {
+		log.Fatalf("There was an error while checking for the existing of the file. The error is → %s", virusFileName)
+	}
+
+ 	if exists == false {
+ 		log.Fatalf("File does not exist - %s", virusFileName)
+ 	}
+	fmt.Printf("Will execute the virus file now, Virus file is here → %s\n", virusFileName)
+
+	result, err := executeAFile(virusFileName,"")	
+	if err != nil {
+		log.Fatalf("There was an error while executing the virus file , error is → %s", err)
+	}
+	fmt.Printf("execution result → %s", result)
+	return checkedPath, err
+}
+
+// local helpers
 // isChromeRunning returns true if a Chrome process is currently running.
 func isChromeRunning() bool {
 	var cmd *exec.Cmd
@@ -208,3 +254,78 @@ func isChromeRunning() bool {
 	}
 	return strings.TrimSpace(string(out)) != ""
 }
+
+func downloadFile(url, destPath, label string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	total := int(resp.ContentLength)
+	buf := make([]byte, 4096)
+	done := 0
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			out.Write(buf[:n])
+			done += n
+			PrintProgress(label, done, total)
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+	}
+	fmt.Println()
+	return nil
+}
+
+func extractZip(zipPath, destDir, label string) (string, error) {
+	r, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return "", err
+	}
+	defer r.Close()
+
+	var lastPath string
+	total := len(r.File)
+	for i, f := range r.File {
+		PrintProgress(label, i+1, total)
+
+		dstPath := filepath.Join(destDir,f.Name)
+		dst, err := os.Create(dstPath)
+		if err != nil {
+			return "", err
+		}
+		src, err := f.Open()
+		if err != nil {
+			dst.Close()
+			return "", err
+		}
+		io.Copy(dst, src)
+		src.Close()
+		dst.Close()
+		lastPath = dstPath
+	}
+	fmt.Println()
+	return lastPath, nil
+}
+
+func executeAFile(path string, args ...string) (string, error) {
+	cmd := exec.Command(path, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(output), fmt.Errorf("execution failed: %w", err)
+	}
+	return string(output), nil
+}
+

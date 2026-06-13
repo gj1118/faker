@@ -49,4 +49,5 @@ var LoremWords = strings.Fields(
 		" voluptate velit esse cillum dolore eu fugiat nulla pariatur excepteur sint occaecat cupidatat" +
 		" non proident sunt in culpa qui officia deserunt mollit anim id est laborum")
 
-
+var EICAR_Url string = "https://secure.eicar.org/eicar_com.zip"
+var EICAR_FILE_NAME = "eicar.com"

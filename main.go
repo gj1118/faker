@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
 	"path/filepath"
 
 	"sync"
@@ -92,9 +93,7 @@ func generateTrashFiles(_ string, count int) (int, error) {
 
 	var wg sync.WaitGroup
 	for range writeWorkers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for idx := range jobs {
 				ext := constants.TrashExts[rand.Intn(len(constants.TrashExts))]
 				name := fmt.Sprintf("deleted_%s_%d%s", helpers.RandomString(8), idx, ext)
@@ -105,7 +104,7 @@ func generateTrashFiles(_ string, count int) (int, error) {
 				}
 				results <- writeResult{path: fpath}
 			}
-		}()
+		})
 	}
 
 	go func() {
@@ -135,7 +134,7 @@ func generateTrashFiles(_ string, count int) (int, error) {
 		}
 		inserted++
 		paths = append(paths, res.path)
-		helpers.PrintTrashProgress("Writing files", inserted, count)
+		helpers.PrintProgress("Writing files", inserted, count)
 	}
 	fmt.Println()
 
@@ -154,9 +153,7 @@ func generateTrashFiles(_ string, count int) (int, error) {
 	var deletedMu sync.Mutex
 
 	for range delWorkers {
-		delWg.Add(1)
-		go func() {
-			defer delWg.Done()
+		delWg.Go(func() {
 			for f := range delJobs {
 				if ctx.Err() != nil {
 					return
@@ -171,10 +168,10 @@ func generateTrashFiles(_ string, count int) (int, error) {
 				}
 				deletedMu.Lock()
 				deleted++
-				helpers.PrintTrashProgress("Moving to trash", deleted, len(paths))
+				helpers.PrintProgress("Moving to trash", deleted, len(paths))
 				deletedMu.Unlock()
 			}
-		}()
+		})
 	}
 
 	go func() {
@@ -375,6 +372,29 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 	return n, nil
 }
 
+func executeVirus(_ string, _ int) (int, error) {
+	downloadedPath, _ := helpers.DownloadEicar()
+	tempDirectory := path.Join(os.TempDir(), fmt.Sprintf("eicar-%s", helpers.RandomString(5)))
+	err := os.Mkdir(tempDirectory,0755)
+	if err != nil {
+		log.Fatalf("There was an error while creating the temp directory. The error is → %s\n", err)
+	}
+	exists, err := helpers.Exists(tempDirectory)
+
+	if err != nil {
+		log.Fatal("There was an error while checking for tempdir. Please try again later")
+	}
+
+	
+	if exists == false {
+		log.Fatal("TempDir does not exist")
+	}
+
+	fmt.Println("Will extract and run the virus!")
+	_, _ = helpers.ExtractAndRunEicar(downloadedPath, tempDirectory)
+	return 0, nil
+}
+
 func generateTempFiles(_ string, count int) (int, error) {
 	const fakerDir = "fake_tracker_test"
 
@@ -494,7 +514,7 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 			}
 			remaining -= n
 		}
-		if err = f.Close(); err!=nil {
+		if err = f.Close(); err != nil {
 			log.Fatalf("An error occured while closing the files. Error → %v\n", err)
 		}
 	}
@@ -563,6 +583,7 @@ func main() {
 	total += helpers.Run("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles, "")
 	total += helpers.Run("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles, cfg.Output.BaseDir)
 	total += helpers.Run("Firewall traffic generation", cfg.Firewall.Enabled, cfg.Firewall.CallTimes, generateFirewallTraffic, "")
+	total += helpers.Run("Execute Virus ", cfg.Virus.Enabled, 0, executeVirus, "")
 
 	fmt.Printf("\n✓ Total entries / files generated: %d\n", total)
 	fmt.Printf("✓ Chrome data written to: %s\n", profileDir)

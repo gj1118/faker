@@ -45,6 +45,8 @@ enabled = true
 [shredder.tempfiles]
 count = 60
 
+[virus]
+enabled = true
 
 [firewall]
 enabled = true
