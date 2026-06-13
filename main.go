@@ -48,18 +48,16 @@ func loadConfig(path string) (Config, error) {
 	if _, err := toml.DecodeFile(path, &config); err != nil {
 		return config, err
 	}
-	if config.Output.BaseDir == "" || config.Output.BaseDir == "." {
-		wd, err := os.Getwd()
-		if err != nil {
-			return config, err
-		}
-		config.Output.BaseDir = wd
+	desktopDir, err := helpers.GetFakerDirectoryOnDesktop()
+	if err != nil {
+		log.Fatalf("There was an erro while getting the faker directory on user's desktop. Please see the error → %s\n", err)
 	}
+	config.Output.BaseDir = desktopDir
 	firewallSites = config.Firewall.Sites
 	return config, nil
 }
 
-func generateTrashFiles(_ string, count int) (int, error) {
+func generateTrashFiles(count int) (int, error) {
 	// Write files to a staging directory on all platforms; Phase 2 moves each
 	// file to the OS recycle bin / trash using the appropriate native API.
 	destDir := filepath.Join(os.TempDir(), "faker_trash_stage")
@@ -352,7 +350,7 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 	return inserted, nil
 }
 
-func generateFirewallTraffic(_ string, callTimes int) (int, error) {
+func generateFirewallTraffic(callTimes int) (int, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	n := 0
 	for _, site := range firewallSites {
@@ -372,10 +370,10 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 	return n, nil
 }
 
-func executeVirus(_ string, _ int) (int, error) {
+func executeVirus(_ int) (int, error) {
 	downloadedPath, _ := helpers.DownloadEicar()
 	tempDirectory := path.Join(os.TempDir(), fmt.Sprintf("eicar-%s", helpers.RandomString(10)))
-	err := os.Mkdir(tempDirectory,0755)
+	err := os.Mkdir(tempDirectory, 0755)
 	if err != nil {
 		log.Fatalf("There was an error while creating the temp directory. The error is → %s\n", err)
 	}
@@ -385,7 +383,6 @@ func executeVirus(_ string, _ int) (int, error) {
 		log.Fatal("There was an error while checking for tempdir. Please try again later")
 	}
 
-	
 	if exists == false {
 		log.Fatal("TempDir does not exist")
 	}
@@ -395,50 +392,27 @@ func executeVirus(_ string, _ int) (int, error) {
 	return 0, nil
 }
 
-func generateTempFiles(_ string, count int) (int, error) {
-	const fakerDir = "fake_tracker_test"
-
-	desktopDir, err := helpers.DesktopPath()
-	if err != nil {
-		return 0, fmt.Errorf("resolve desktop: %w", err)
-	}
-
-	dir := filepath.Join(desktopDir, fakerDir, "Temp")
-	dirExists, err := helpers.Exists(dir)
-
-	if err != nil {
-		fmt.Println("It seems that there was an error while checking if the directory exists or not. Bailing out. ")
-		os.Exit(1)
-
-	}
-
-	switch dirExists {
-	case true:
-		fmt.Println("Directory already exists. Will create a new dir with similar name")
-		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", fakerDir, helpers.RandomString(5)), "Temp")
-	case false:
-		fmt.Println("Directory does not exist. Go ahead , create a new one")
-	}
-
-	// everyting was good, now go ahead and create the dir
-	if err := os.MkdirAll(dir, 0755); err != nil {
+func generateTempFiles(count int) (int, error) {
+	tempFilesDir := filepath.Join(config.Output.BaseDir, "TempFiles")
+	if err := os.MkdirAll(tempFilesDir, 0755); err != nil {
 		return 0, err
 	}
+
 	for i := range count {
 		pattern := constants.TempFilePatterns[rand.Intn(len(constants.TempFilePatterns))]
 		content := fmt.Sprintf(
 			"tracker_origin=%s\nsession_id=%s\nuid=%s\ntimestamp=%s\npayload=%s\n",
 			helpers.PickDomain(), helpers.RandomString(24), helpers.RandomString(16), helpers.RandomTimestamp(), helpers.RandomString(128),
 		)
-		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf(pattern, i)), []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(tempFilesDir, fmt.Sprintf(pattern, i)), []byte(content), 0644); err != nil {
 			return i, err
 		}
 	}
 	return count, nil
 }
 
-func generateRegistryEntries(baseDir string, count int) (int, error) {
-	dir := filepath.Join(baseDir, "fake_tracker_test", "Registry")
+func generateRegistryEntries(count int) (int, error) {
+	dir := filepath.Join(config.Output.BaseDir, "Registry")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return 0, err
 	}
@@ -465,23 +439,8 @@ func generateRegistryEntries(baseDir string, count int) (int, error) {
 	return count, nil
 }
 
-// shredderFileSizes defines the pool of file sizes used when generating shredder temp files.
-// Files are spread across small (1 KB), medium (64 KB–512 KB), and large (1 MB–10 MB) tiers
-// so that the shredder has a realistic variety of workloads to process.
-var shredderFileSizes = []int{
-	1 * 1024,         // 1 KB
-	4 * 1024,         // 4 KB
-	16 * 1024,        // 16 KB
-	64 * 1024,        // 64 KB
-	256 * 1024,       // 256 KB
-	512 * 1024,       // 512 KB
-	1 * 1024 * 1024,  // 1 MB
-	4 * 1024 * 1024,  // 4 MB
-	10 * 1024 * 1024, // 10 MB
-}
-
-func generateShredderTempFiles(baseDir string, count int) (int, error) {
-	dir := filepath.Join(baseDir, "fake_tracker_test", "Shredder")
+func generateShredderTempFiles(count int) (int, error) {
+	dir := filepath.Join(config.Output.BaseDir, "Shredder")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return 0, err
 	}
@@ -489,7 +448,7 @@ func generateShredderTempFiles(baseDir string, count int) (int, error) {
 	exts := []string{".tmp", ".dat", ".bin", ".bak", ".log"}
 
 	for i := range count {
-		size := shredderFileSizes[rand.Intn(len(shredderFileSizes))]
+		size := constants.ShredderFileSizes[rand.Intn(len(constants.ShredderFileSizes))]
 		ext := exts[rand.Intn(len(exts))]
 		name := fmt.Sprintf("shred_%s_%d%s", helpers.RandomString(8), i, ext)
 		fpath := filepath.Join(dir, name)
@@ -578,14 +537,15 @@ func main() {
 	total += helpers.Run("Chrome cookies (SQLite)", cfg.Cookies.Enabled, cfg.Cookies.Count, generateChromeCookies, profileDir)
 	total += helpers.Run("Chrome cache files", cfg.Cache.Enabled, cfg.Cache.Count, generateChromeCache, profileDir)
 	total += helpers.Run("Chrome history (SQLite)", cfg.History.Enabled, cfg.History.Count, generateChromeHistory, profileDir)
-	total += helpers.Run("Temp / junk files", cfg.TempFiles.Enabled, cfg.TempFiles.Count, generateTempFiles, cfg.Output.BaseDir)
-	total += helpers.Run("Registry tracker entries", cfg.Registry.Enabled, cfg.Registry.Count, generateRegistryEntries, cfg.Output.BaseDir)
-	total += helpers.Run("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles, "")
-	total += helpers.Run("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles, cfg.Output.BaseDir)
-	total += helpers.Run("Firewall traffic generation", cfg.Firewall.Enabled, cfg.Firewall.CallTimes, generateFirewallTraffic, "")
-	total += helpers.Run("Execute Virus ", cfg.Virus.Enabled, 0, executeVirus, "")
+	total += helpers.RunSimple("Temp / junk files", cfg.TempFiles.Enabled, cfg.TempFiles.Count, generateTempFiles)
+	total += helpers.RunSimple("Registry tracker entries", cfg.Registry.Enabled, cfg.Registry.Count, generateRegistryEntries)
+	total += helpers.RunSimple("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles)
+	total += helpers.RunSimple("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles)
+	total += helpers.RunSimple("Firewall traffic generation", cfg.Firewall.Enabled, cfg.Firewall.CallTimes, generateFirewallTraffic)
+	total += helpers.RunSimple("Execute Virus ", cfg.Virus.Enabled, 0, executeVirus)
 
 	fmt.Printf("\n✓ Total entries / files generated: %d\n", total)
 	fmt.Printf("✓ Chrome data written to: %s\n", profileDir)
-	fmt.Printf("✓ Other files written to: %s/fake_tracker_test/\n", cfg.Output.BaseDir)
+	result := filepath.Join(cfg.Output.BaseDir, "fake_tracker_test")
+	fmt.Printf("✓ Other files written to: %s\n", result)
 }

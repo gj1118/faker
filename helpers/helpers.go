@@ -106,6 +106,36 @@ func DesktopPath() (string, error) {
 	}
 }
 
+func GetFakerDirectoryOnDesktop() (string, error) {
+	desktopDir, err := DesktopPath()
+	if err != nil {
+		return "", fmt.Errorf("resolve desktop: %w", err)
+	}
+
+	dir := filepath.Join(desktopDir, constants.FakerDir)
+	dirExists, err := Exists(dir)
+
+	if err != nil {
+		fmt.Println("It seems that there was an error while checking if the directory exists or not. Bailing out. ")
+		os.Exit(1)
+
+	}
+
+	switch dirExists {
+	case true:
+		fmt.Println("Directory already exists. Will create a new dir with similar name")
+		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", constants.FakerDir, RandomString(5)) )
+	case false:
+		fmt.Println("Directory does not exist. Go ahead , create a new one")
+	}
+
+	// everyting was good, now go ahead and create the dir
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return "", err
+	}
+	return dir, nil
+}
+
 // chromeDefaultPaths returns (executablePath, profileDir) for the current OS.
 func ChromeDefaultPaths() (exePath, profileDir string) {
 	home, _ := os.UserHomeDir()
@@ -190,6 +220,21 @@ func Run(label string, enabled bool, count int, fn func(string, int) (int, error
 	}
 	fmt.Printf("  %-40s ", label)
 	n, err := fn(baseDir, count)
+	if err != nil {
+		fmt.Printf("ERROR: %v\n", err)
+		return 0
+	}
+	fmt.Printf("done (%d)\n", n)
+	return n
+}
+
+func RunSimple(label string, enabled bool, count int, fn func(int) (int, error)) int {
+	if !enabled {
+		fmt.Printf("  %-40s skipped (disabled in config)\n", label)
+		return 0
+	}
+	fmt.Printf("  %-40s ", label)
+	n, err := fn(count)
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
 		return 0

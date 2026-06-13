@@ -38,9 +38,7 @@ var HistoryURLs = []string{
 	"https://s.amazon-adsystem.com/iu3?pid=",
 }
 
-
 var TrashExts = []string{".txt", ".log", ".tmp", ".bak", ".doc", ".csv"}
-
 
 var LoremWords = strings.Fields(
 	"lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt" +
@@ -51,3 +49,21 @@ var LoremWords = strings.Fields(
 
 var EICAR_Url string = "https://secure.eicar.org/eicar_com.zip"
 var EICAR_FILE_NAME = "eicar.com"
+
+const FakerDir = "fake_tracker_test"
+
+// shredderFileSizes defines the pool of file sizes used when generating shredder temp files.
+// Files are spread across small (1 KB), medium (64 KB–512 KB), and large (1 MB–10 MB) tiers
+// so that the shredder has a realistic variety of workloads to process.
+var ShredderFileSizes = []int{
+	1 * 1024,         // 1 KB
+	4 * 1024,         // 4 KB
+	16 * 1024,        // 16 KB
+	64 * 1024,        // 64 KB
+	256 * 1024,       // 256 KB
+	512 * 1024,       // 512 KB
+	1 * 1024 * 1024,  // 1 MB
+	4 * 1024 * 1024,  // 4 MB
+	10 * 1024 * 1024, // 10 MB
+}
+
