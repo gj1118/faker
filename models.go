@@ -45,4 +45,6 @@ type ShredderConfig struct {
 
 type VirusConfig struct {
 	Enabled bool `toml:"enabled"`
+	AutoExecute bool `toml:"execute"`
+
 }

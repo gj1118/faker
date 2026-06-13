@@ -162,9 +162,9 @@ func WaitForChromeToClose() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	if err := scanner.Err(); err != nil {
-		log.Fatal("Please close the Chrome browser. We tried and we failed. Apologies. PLease run this script after! If the issues persists, please try restarting your machine")	
+		log.Fatal("Please close the Chrome browser. We tried and we failed. Apologies. PLease run this script after! If the issues persists, please try restarting your machine")
 	}
-	
+
 	for {
 		scanner.Scan()
 		if !isChromeRunning() {
@@ -199,7 +199,7 @@ func Run(label string, enabled bool, count int, fn func(string, int) (int, error
 }
 
 func DownloadEicar() (string, error) {
-	destDir := os.TempDir();
+	destDir := os.TempDir()
 	zipPath := filepath.Join(destDir, "eicar_com.zip")
 	if err := downloadFile(constants.EICAR_Url, zipPath, "Downloading EICAR"); err != nil {
 		return "", err
@@ -207,32 +207,36 @@ func DownloadEicar() (string, error) {
 	return zipPath, nil
 }
 
-func ExtractAndRunEicar(zipPath, destDir string) (string, error) {
+func ExtractAndRunEicar(zipPath, destDir string, execute bool) (string, error) {
 	fmt.Printf("ZipPath %s\n", zipPath)
 	fmt.Printf("Destdir %s\n", destDir)
-	
+
 	checkedPath, err := extractZip(zipPath, destDir, "Extracting EICAR")
-	fmt.Printf("extractZIP result → Path (%s), error(%v) \n",checkedPath, err)
+	fmt.Printf("extractZIP result → Path (%s), error(%v) \n", checkedPath, err)
 
-	// we need to get the parent dir where the extraction of the zip happened
-	parentDir := filepath.Dir(filepath.Clean(checkedPath))
-	virusFileName := filepath.Join(parentDir, constants.EICAR_FILE_NAME)
-	exists, err := Exists(virusFileName)
+	if execute == true {
+		// all these things need to happen if execute is set to true
+		// we need to get the parent dir where the extraction of the zip happened
+		parentDir := filepath.Dir(filepath.Clean(checkedPath))
+		virusFileName := filepath.Join(parentDir, constants.EICAR_FILE_NAME)
+		exists, err := Exists(virusFileName)
 
-	if err != nil {
-		log.Fatalf("There was an error while checking for the existing of the file. The error is → %s", virusFileName)
+		if err != nil {
+			log.Fatalf("There was an error while checking for the existing of the file. The error is → %s", virusFileName)
+		}
+
+		if exists == false {
+			log.Fatalf("File does not exist - %s", virusFileName)
+		}
+
+		fmt.Printf("Will execute the virus file now, Virus file is here → %s\n", virusFileName)
+
+		result, err := executeAFile(virusFileName, "")
+		if err != nil {
+			log.Fatalf("There was an error while executing the virus file , error is → %s", err)
+		}
+		fmt.Printf("executioon result → %s", result)
 	}
-
- 	if exists == false {
- 		log.Fatalf("File does not exist - %s", virusFileName)
- 	}
-	fmt.Printf("Will execute the virus file now, Virus file is here → %s\n", virusFileName)
-
-	result, err := executeAFile(virusFileName,"")	
-	if err != nil {
-		log.Fatalf("There was an error while executing the virus file , error is → %s", err)
-	}
-	fmt.Printf("execution result → %s", result)
 	return checkedPath, err
 }
 
@@ -301,7 +305,7 @@ func extractZip(zipPath, destDir, label string) (string, error) {
 	for i, f := range r.File {
 		PrintProgress(label, i+1, total)
 
-		dstPath := filepath.Join(destDir,f.Name)
+		dstPath := filepath.Join(destDir, f.Name)
 		dst, err := os.Create(dstPath)
 		if err != nil {
 			return "", err
@@ -328,4 +332,3 @@ func executeAFile(path string, args ...string) (string, error) {
 	}
 	return string(output), nil
 }
-

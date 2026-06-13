@@ -24,6 +24,7 @@ import (
 
 var firewallSites []string
 var cfgPath = "config.toml"
+var config Config
 
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
 func chromeExePath(cfg ChromeConfig) string {
@@ -44,19 +45,18 @@ func chromeProfileDir(cfg ChromeConfig) string {
 }
 
 func loadConfig(path string) (Config, error) {
-	var cfg Config
-	if _, err := toml.DecodeFile(path, &cfg); err != nil {
-		return cfg, err
+	if _, err := toml.DecodeFile(path, &config); err != nil {
+		return config, err
 	}
-	if cfg.Output.BaseDir == "" || cfg.Output.BaseDir == "." {
+	if config.Output.BaseDir == "" || config.Output.BaseDir == "." {
 		wd, err := os.Getwd()
 		if err != nil {
-			return cfg, err
+			return config, err
 		}
-		cfg.Output.BaseDir = wd
+		config.Output.BaseDir = wd
 	}
-	firewallSites = cfg.Firewall.Sites
-	return cfg, nil
+	firewallSites = config.Firewall.Sites
+	return config, nil
 }
 
 func generateTrashFiles(_ string, count int) (int, error) {
@@ -374,7 +374,7 @@ func generateFirewallTraffic(_ string, callTimes int) (int, error) {
 
 func executeVirus(_ string, _ int) (int, error) {
 	downloadedPath, _ := helpers.DownloadEicar()
-	tempDirectory := path.Join(os.TempDir(), fmt.Sprintf("eicar-%s", helpers.RandomString(5)))
+	tempDirectory := path.Join(os.TempDir(), fmt.Sprintf("eicar-%s", helpers.RandomString(10)))
 	err := os.Mkdir(tempDirectory,0755)
 	if err != nil {
 		log.Fatalf("There was an error while creating the temp directory. The error is → %s\n", err)
@@ -391,7 +391,7 @@ func executeVirus(_ string, _ int) (int, error) {
 	}
 
 	fmt.Println("Will extract and run the virus!")
-	_, _ = helpers.ExtractAndRunEicar(downloadedPath, tempDirectory)
+	_, _ = helpers.ExtractAndRunEicar(downloadedPath, tempDirectory, config.Virus.AutoExecute)
 	return 0, nil
 }
 

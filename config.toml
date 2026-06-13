@@ -47,6 +47,7 @@ count = 60
 
 [virus]
 enabled = true
+execute = true
 
 [firewall]
 enabled = true
