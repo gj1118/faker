@@ -36,7 +36,7 @@ count = 50
 [trash]
 enabled = true
 # Number of Lorem Ipsum files to create in Trash (macOS) / Recycle Bin (Windows)
-count = 1000
+count = 100
 
 # Shredder entries
 [shredder]
