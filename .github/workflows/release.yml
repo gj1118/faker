@@ -30,6 +30,9 @@ jobs:
           default_bump: patch
           release_branches: main
 
+      - name: Fetch new tag
+        run: git fetch --tags
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -38,3 +41,4 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.tag.outputs.new_tag }}
