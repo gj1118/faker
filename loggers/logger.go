@@ -1,10 +1,12 @@
 package loggers
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/gj1118/faker/constants"
 	"github.com/gj1118/faker/models"
@@ -18,6 +20,7 @@ func Init(loggingConfig models.LogConfig) {
 
 	var writer io.Writer = os.Stdout
 	if loggingConfig.Where == "file" {
+		rotateLogFile()
 		file, err := os.OpenFile(constants.LOG_FILE_NAME, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			log.Fatal(err)
@@ -38,4 +41,15 @@ func Init(loggingConfig models.LogConfig) {
 		handler = slog.NewJSONHandler(writer, opts)
 	}
 	slog.SetDefault(slog.New(handler))
+}
+
+func rotateLogFile() {
+	if _, err := os.Stat(constants.LOG_FILE_NAME); os.IsNotExist(err) {
+		return
+	}
+	ts := time.Now().Format("20060102_150405")
+	archived := fmt.Sprintf("faker_%s.log", ts)
+	if err := os.Rename(constants.LOG_FILE_NAME, archived); err != nil {
+		log.Printf("warning: could not rotate log file: %v", err)
+	}
 }

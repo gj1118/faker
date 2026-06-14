@@ -280,36 +280,57 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 func generateChromeCache(profileDir string, count int) (int, error) {
 	// Chrome simple-cache files live under Cache/Cache_Data/
 	dir := filepath.Join(profileDir, "Cache", "Cache_Data")
+	slog.Info("Chrome Cache file path", "path", dir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		slog.Error("An error happened, while generating chrome cache", "directory_creation_error", err)
 		return 0, err
+	} else {
+		slog.Info("Chrome Cache data was successfully generated")
 	}
+
 	for i := range count {
 		// Simple cache entry names are 16 hex chars
 		fpath := filepath.Join(dir, fmt.Sprintf("%016x_%d", rand.Int63(), i))
+		slog.Info("Chrome Cache", "file", fpath)
 		content := fmt.Sprintf(
 			"HTTP/1.1 200 OK\r\nContent-Type: image/gif\r\nSet-Cookie: uid=%s; Domain=.%s; Path=/\r\n\r\nGIF89a fake tracking pixel data %s",
 			helpers.RandomString(16), helpers.PickDomain(), helpers.RandomString(64),
 		)
 		if err := os.WriteFile(fpath, []byte(content), 0644); err != nil {
+			slog.Error("An error happened while writing file for Chrome cache", "error", err)
 			return i, err
+		} else {
+			slog.Info("Chrome Cache Data file data was successfully written", "file", fpath)
 		}
 	}
+	slog.Info("Successfully returning chrome cache data", "count", count)
 	return count, nil
 }
 
 func generateChromeHistory(profileDir string, count int) (int, error) {
 	dbPath := filepath.Join(profileDir, "History")
+	slog.Info("Chrome History", "path", dbPath)
+
 	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		slog.Error("An error happened in generating Chrome History data", "error", err)
 		return 0, err
+	} else {
+		slog.Info("Chrome history directory was created successfully", "path", profileDir)
 	}
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
+		slog.Error("An error happened while opening the DB file", "database", dbPath)
 		return 0, fmt.Errorf("open History DB: %w", err)
+	} else {
+		slog.Info("Was successfully able to open the DB File")
 	}
 
 	defer func() {
 		if err := db.Close(); err != nil {
+			slog.Error("Failed to close chrome history database", "error", err)
 			log.Fatalf("Failed to close database: %v\n", err)
+		} else {
+			slog.Info("Chrome history database was closed successfully.")
 		}
 	}()
 
@@ -323,7 +344,10 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 		hidden          INTEGER DEFAULT 0 NOT NULL
 	)`)
 	if err != nil {
+		slog.Error("An error happened while creating urls table", "error", err)
 		return 0, fmt.Errorf("create urls table: %w", err)
+	} else {
+		slog.Info("URLs table was cleared successfully")
 	}
 
 	_, err = db.Exec(`CREATE TABLE IF NOT EXISTS visits (
@@ -336,21 +360,30 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 		visit_duration INTEGER DEFAULT 0 NOT NULL
 	)`)
 	if err != nil {
+		slog.Error("Create Visits table could not be created", "error", err)
 		return 0, fmt.Errorf("create visits table: %w", err)
+	} else {
+		slog.Info("Create Visits table was created successfully")
 	}
 
 	now := time.Now()
 	inserted := 0
 	for range count {
 		base := constants.HistoryURLs[rand.Intn(len(constants.HistoryURLs))]
+		slog.Info("Chrome History Base URL", "base", base)
+		
 		url := fmt.Sprintf("%s%s&t=%d", base, helpers.RandomString(12), rand.Intn(99999))
+		slog.Info("Chrome History URL", "url", url)
 		visitTime := helpers.ToWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
 
 		res, err := db.Exec(`INSERT INTO urls (url, title, visit_count, typed_count, last_visit_time, hidden)
 			VALUES (?, 'Tracking Request', ?, 0, ?, 0)`,
 			url, rand.Intn(10)+1, visitTime)
 		if err != nil {
+			slog.Error("An error happened while inserting url","error", err)
 			return inserted, fmt.Errorf("insert url: %w", err)
+		} else {
+			slog.Info("Inserting url was successful")
 		}
 		urlID, _ := res.LastInsertId()
 
@@ -358,10 +391,14 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 			VALUES (?, ?, 0, 0, 0, ?)`,
 			urlID, visitTime, rand.Intn(10000)*1000)
 		if err != nil {
+			slog.Error("Could not insert visits data", "error", err)
 			return inserted, fmt.Errorf("insert visit: %w", err)
+		} else {
+			slog.Info("Inserted visited record data successfully")
 		}
 		inserted++
 	}
+	slog.Info("Chrome History was done successfully", "records", inserted)
 	return inserted, nil
 }
 
