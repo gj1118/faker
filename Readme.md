@@ -26,4 +26,4 @@ All settings live in `config.toml`. Each module has an `enabled` flag and a `cou
 
 ## Disclaimer
 
-This tool is intended **only** for stress testing and security solution validation. Using it for malicious or nefarious purposes is strictly prohibited.
+This tool is intended **only** for stress testing and security solution validation. Using it for malicious or nefarious purposes is strictly prohibited. If you are using this software, you agree that you will not be using for aforementioned activities. Using this software for spamming is prohibited too.
