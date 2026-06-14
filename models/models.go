@@ -5,8 +5,16 @@ type ChromeConfig struct {
 	ProfileDir string `toml:"profile_dir"`
 }
 
+type LogConfig struct {
+	Handler string `toml:"handler"`
+	Info    string `toml:"level"`
+	Enabled bool   `toml:"enabled"`
+	Where   string `toml:"where"`
+}
+
 type Config struct {
 	Output    OutputConfig   `toml:"output"`
+	Log       LogConfig      `toml:"logging"`
 	Chrome    ChromeConfig   `toml:"chrome"`
 	Cookies   SectionConfig  `toml:"cookies"`
 	Cache     SectionConfig  `toml:"cache"`
@@ -44,9 +52,8 @@ type ShredderConfig struct {
 }
 
 type VirusConfig struct {
-	Enabled bool `toml:"enabled"`
+	Enabled     bool `toml:"enabled"`
 	AutoExecute bool `toml:"execute"`
-	CreateISO bool `toml:"create_iso"`
-	MountISO bool `toml:"mount_iso"`
+	CreateISO   bool `toml:"create_iso"`
+	MountISO    bool `toml:"mount_iso"`
 }
-

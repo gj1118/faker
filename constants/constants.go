@@ -67,3 +67,4 @@ var ShredderFileSizes = []int{
 	10 * 1024 * 1024, // 10 MB
 }
 
+ const LOG_FILE_NAME = "faker.log"

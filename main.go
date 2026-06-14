@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/gj1118/faker/constants"
 	"github.com/gj1118/faker/helpers"
+	"github.com/gj1118/faker/loggers"
 	"github.com/gj1118/faker/models"
 	_ "modernc.org/sqlite"
 )
@@ -81,7 +83,7 @@ func generateTrashFiles(count int) (int, error) {
 		}
 	}()
 
-	// --- Phase 1: write files with a worker pool ---
+	// write files
 	type writeResult struct {
 		path string
 		err  error
@@ -141,7 +143,7 @@ func generateTrashFiles(count int) (int, error) {
 		return inserted, ctx.Err()
 	}
 
-	// --- Phase 2: move staged files to the OS recycle bin / trash ---
+	// Move files to recyclebin/trash
 	const delWorkers = 8
 	delJobs := make(chan string, delWorkers)
 
@@ -197,16 +199,21 @@ func generateTrashFiles(count int) (int, error) {
 
 func generateChromeCookies(profileDir string, count int) (int, error) {
 	dbPath := filepath.Join(profileDir, "Cookies")
+	slog.Info("Chrome Profile Cookies", "path", dbPath)
 	if err := os.MkdirAll(profileDir, 0755); err != nil {
+		slog.Error("Unable to get the profile cookie dir", "error", err)
 		return 0, err
 	}
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
+		slog.Error("Unable to open DB", "error", err)
 		return 0, fmt.Errorf("open Cookies DB: %w", err)
+	} else {
+		slog.Info("DB was opened successfuly")
 	}
-
 	defer func() {
 		if err := db.Close(); err != nil {
+			slog.Error("Failed to close database", "error", err)
 			log.Fatalf("Failed to close database: %v\n", err)
 		}
 	}()
@@ -232,7 +239,10 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 		last_update_utc    INTEGER NOT NULL DEFAULT 0
 	)`)
 	if err != nil {
+		slog.Error("Create cookies table failed", "error", err)
 		return 0, fmt.Errorf("create cookies table: %w", err)
+	} else {
+		slog.Info("Cookies table was created succssfully")
 	}
 
 	now := time.Now()
@@ -256,10 +266,14 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 			helpers.ToWebKitTime(now),
 		)
 		if err != nil {
+			slog.Error("insert cookies failed ", "error", err)
 			return inserted, fmt.Errorf("insert cookie: %w", err)
+		} else {
+			slog.Info("Cookie informated was saved in the database")
 		}
 		inserted++
 	}
+	slog.Info("Successfully added records into the database", "count", inserted)
 	return inserted, nil
 }
 
@@ -485,7 +499,7 @@ func main() {
 	fmt.Println("---Faker init---")
 	fmt.Println("Will setup your TEST system with fake/bad data, so your security solutions might get to work, otherwise what work do they do ? ;) ")
 	fmt.Println("*************************")
-	fmt.Println("Looking for a MacOS or a Linux version - we have one too. Please don't forget to ask!")
+	fmt.Println("Looking for a MacOS or a Linux version - we have a binary for those OSes too. Please don't forget to ask!")
 	fmt.Println("*************************")
 	fmt.Println("Author - Gagan Janjua")
 	fmt.Println("---Faker deinit---")
@@ -502,6 +516,8 @@ func main() {
 	}
 
 	fmt.Printf("Config: %s\n\n", cfgPath)
+	// init logger -
+	loggers.Init(cfg.Log)
 
 	// Detect Chrome installation
 	chromeExe := chromeExePath(cfg.Chrome)
@@ -509,18 +525,19 @@ func main() {
 
 	// Verify Chrome is installed
 	if _, err := os.Stat(profileDir); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "ERROR: Chrome profile directory not found at:\n  %s\n", profileDir)
-		fmt.Fprintf(os.Stderr, "Install Google Chrome or set [chrome] profile_dir in %s\n", cfgPath)
-		os.Exit(1)
+		slog.Error("Chrome profile directory not found at", "Location", profileDir)
+		log.Fatalf("Install Google Chrome or set [chrome] profile_dir in %s\n", cfgPath)
 	}
 	if chromeExe == "" {
-		fmt.Fprintf(os.Stderr, "ERROR: Google Chrome executable not found on this system.\n")
-		fmt.Fprintf(os.Stderr, "Install Google Chrome or set [chrome] exe_path in %s\n", cfgPath)
-		os.Exit(1)
+		slog.Error("Google Chrome executable not found on this system")
+		log.Fatalf("Install Google Chrome or set [chrome] exe_path in %s\n", cfgPath)
 	}
 
 	fmt.Printf("Chrome executable: %s\n", chromeExe)
+	slog.Info("Chrome executable", "Path", chromeExe)
+
 	fmt.Printf("Chrome profile:    %s\n\n", profileDir)
+	slog.Info("Chrome User Profile ", "Profile Path", profileDir)
 
 	fmt.Print("Proceed and generate fake data? [Y/N]: ")
 	var answer string

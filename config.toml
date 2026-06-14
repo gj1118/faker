@@ -3,6 +3,12 @@
 # Leave as "." to use the current working directory
 base_dir = "."
 
+[logging]
+enabled = true
+handler = "text" #other value is json.
+level = "Info"   #other values are Info, Debug, Warn , Error
+where = "file"   #other values are stdout, both
+
 [chrome]
 # Path to the Chrome executable. Leave empty to auto-detect.
 # Windows example: exe_path = 'C:\Program Files\Google\Chrome\Application\chrome.exe'
@@ -58,8 +64,6 @@ sites = [
   "rep-yellow.testingmcafeesites.com",
   "p.wuporg.com",
   "justid.io",
-  "tzegilo.com"
+  "tzegilo.com",
 ]
-call_times= 5
-
-
+call_times = 5

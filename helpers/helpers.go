@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -185,7 +186,10 @@ func ChromeDefaultPaths() (exePath, profileDir string) {
 // prompting the user to close it first.
 func WaitForChromeToClose() {
 	if !isChromeRunning() {
+		slog.Info("Chrome is not running, we are good to go, will proceed ahead!")
 		return
+	} else {
+		slog.Info("Chrome is currently Running. Will ask the user to close it")
 	}
 	fmt.Println()
 	fmt.Println("WARNING: Google Chrome is currently running.")
@@ -193,6 +197,7 @@ func WaitForChromeToClose() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	if err := scanner.Err(); err != nil {
+		slog.Error("We tried closing the browser but we failed.", "Error", err)
 		log.Fatal("Please close the Chrome browser. We tried and we failed. Apologies. PLease run this script after! If the issues persists, please try restarting your machine")
 	}
 
@@ -200,9 +205,11 @@ func WaitForChromeToClose() {
 		scanner.Scan()
 		if !isChromeRunning() {
 			fmt.Println("Chrome is now closed. Proceeding...")
+			slog.Info("Chrome is now closed. Proceeding...")
 			return
 		}
 		fmt.Println("Chrome is still running. Please close it and press Enter again.")
+		slog.Info("Chrome is still running. PLease close it!")
 	}
 }
 
