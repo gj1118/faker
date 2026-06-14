@@ -1,6 +1,6 @@
 //go:build windows
 
-package main
+package support
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ type shFileOpStructW struct {
 	lpTitle uintptr
 }
 
-func moveToRecycleBin(path string) error {
+func MoveToRecycleBin(path string) error {
 	// SHFileOperationW requires a double-null-terminated UTF-16 string.
 	from, err := syscall.UTF16FromString(path)
 	if err != nil {

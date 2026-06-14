@@ -1,6 +1,6 @@
 //go:build !windows
 
-package main
+package support
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 // moveToRecycleBin moves the file at path to the OS trash directory.
 // On macOS it moves the file to ~/.Trash; on Linux it follows the
 // FreeDesktop.org trash specification.
-func moveToRecycleBin(path string) error {
+func MoveToRecycleBin(path string) error {
 	switch runtime.GOOS {
 	case "darwin":
 		return moveToMacTrash(path)

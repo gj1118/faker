@@ -22,6 +22,7 @@ import (
 	"github.com/gj1118/faker/helpers"
 	"github.com/gj1118/faker/loggers"
 	"github.com/gj1118/faker/models"
+	"github.com/gj1118/faker/support"
 	_ "modernc.org/sqlite"
 )
 
@@ -159,7 +160,7 @@ func generateTrashFiles(count int) (int, error) {
 				if ctx.Err() != nil {
 					return
 				}
-				if rerr := moveToRecycleBin(f); rerr != nil {
+				if rerr := support.MoveToRecycleBin(f); rerr != nil {
 					delErrMu.Lock()
 					if delFirstErr == nil {
 						delFirstErr = rerr
