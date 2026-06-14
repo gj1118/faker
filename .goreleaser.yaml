@@ -22,6 +22,8 @@ builds:
 archives:
   - formats:
       - tar.gz
+    files:
+      - config.toml
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
