@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/gj1118/faker/constants"
+	"github.com/gj1118/faker/models"
 )
 
 func Exists(path string) (bool, error) {
@@ -124,7 +125,7 @@ func GetFakerDirectoryOnDesktop() (string, error) {
 	switch dirExists {
 	case true:
 		fmt.Println("Directory already exists. Will create a new dir with similar name")
-		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", constants.FakerDir, RandomString(5)) )
+		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", constants.FakerDir, RandomString(5)))
 	case false:
 		fmt.Println("Directory does not exist. Go ahead , create a new one")
 	}
@@ -252,18 +253,51 @@ func DownloadEicar() (string, error) {
 	return zipPath, nil
 }
 
-func ExtractAndRunEicar(zipPath, destDir string, execute bool) (string, error) {
-	fmt.Printf("ZipPath %s\n", zipPath)
-	fmt.Printf("Destdir %s\n", destDir)
-
+func ExtractAndRunEicar(zipPath, destDir string, virusModel models.VirusConfig) (string, error) {
 	checkedPath, err := extractZip(zipPath, destDir, "Extracting EICAR")
-	fmt.Printf("extractZIP result → Path (%s), error(%v) \n", checkedPath, err)
+	parentDir := filepath.Dir(filepath.Clean(checkedPath))
+	fmt.Println(parentDir)
+	// we create the iso on the desktiop of the current user
+	isoDirPath, err := DesktopPath()
+	if err != nil {
+		log.Fatalf("An error happened while getting desktop path , error → %s\n", err)
+	}
 
-	if execute == true {
+	// check if we need to create a mount drive
+	// we need to do it before execute, otherwise the file may be quarantined when executed by the AV
+	if virusModel.CreateISO == true {
+		parentDirExists, err := Exists(parentDir)
+		if err != nil {
+			log.Fatalf("Could not get the user's desktop dir. Error → %s\n", err)
+		}
+		if parentDirExists == false {
+			log.Fatal("we were unable to get user's desktop location.")
+		}
+
+		isoName := fmt.Sprintf("faker_%s.iso", RandomString(5))
+		desktopISOLocation := filepath.Join(isoDirPath, isoName)
+
+		if err := createISO(parentDir, desktopISOLocation); err != nil {
+			log.Fatalf("An error happened while creating ISO, error follows →%s", err)
+		}
+		// now check if we need to mount it too
+		if virusModel.MountISO == true {
+			mountPoint, err := mountISO(desktopISOLocation)
+
+			if err != nil {
+				log.Fatalf("Could not mount the ISO, error is → %s\n", err)
+			}
+			fmt.Printf("Mounted the ISO on %s\n", mountPoint)
+		} else {
+			fmt.Println("Will not mount the generated ISO!")
+		}
+	}
+
+	if virusModel.AutoExecute == true {
 		// all these things need to happen if execute is set to true
-		// we need to get the parent dir where the extraction of the zip happened
-		parentDir := filepath.Dir(filepath.Clean(checkedPath))
-		virusFileName := filepath.Join(parentDir, constants.EICAR_FILE_NAME)
+		// execute from the mounted ISO when available so AV real-time scanning
+		// of the staging directory does not block the run
+		virusFileName := filepath.Join(destDir, constants.EICAR_FILE_NAME)
 		exists, err := Exists(virusFileName)
 
 		if err != nil {

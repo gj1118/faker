@@ -48,6 +48,8 @@ count = 60
 [virus]
 enabled = true
 execute = true
+create_iso = true
+mount_iso = true
 
 [firewall]
 enabled = true

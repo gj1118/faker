@@ -19,15 +19,16 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/gj1118/faker/constants"
 	"github.com/gj1118/faker/helpers"
+	"github.com/gj1118/faker/models"
 	_ "modernc.org/sqlite"
 )
 
 var firewallSites []string
 var cfgPath = "config.toml"
-var config Config
+var config models.Config
 
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
-func chromeExePath(cfg ChromeConfig) string {
+func chromeExePath(cfg models.ChromeConfig) string {
 	if cfg.ExePath != "" {
 		return cfg.ExePath
 	}
@@ -36,7 +37,7 @@ func chromeExePath(cfg ChromeConfig) string {
 }
 
 // chromeProfileDir resolves the profile directory, using config override or auto-detection.
-func chromeProfileDir(cfg ChromeConfig) string {
+func chromeProfileDir(cfg models.ChromeConfig) string {
 	if cfg.ProfileDir != "" {
 		return cfg.ProfileDir
 	}
@@ -44,7 +45,7 @@ func chromeProfileDir(cfg ChromeConfig) string {
 	return profileDir
 }
 
-func loadConfig(path string) (Config, error) {
+func loadConfig(path string) (models.Config, error) {
 	if _, err := toml.DecodeFile(path, &config); err != nil {
 		return config, err
 	}
@@ -387,8 +388,7 @@ func executeVirus(_ int) (int, error) {
 		log.Fatal("TempDir does not exist")
 	}
 
-	fmt.Println("Will extract and run the virus!")
-	_, _ = helpers.ExtractAndRunEicar(downloadedPath, tempDirectory, config.Virus.AutoExecute)
+	_, _ = helpers.ExtractAndRunEicar(downloadedPath, tempDirectory, config.Virus)
 	return 0, nil
 }
 
@@ -484,6 +484,9 @@ func main() {
 	fmt.Println()
 	fmt.Println("---Faker init---")
 	fmt.Println("Will setup your TEST system with fake/bad data, so your security solutions might get to work, otherwise what work do they do ? ;) ")
+	fmt.Println("*************************")
+	fmt.Println("Looking for a MacOS or a Linux version - we have one too. Please don't forget to ask!")
+	fmt.Println("*************************")
 	fmt.Println("Author - Gagan Janjua")
 	fmt.Println("---Faker deinit---")
 	fmt.Println()
