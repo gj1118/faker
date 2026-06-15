@@ -146,7 +146,7 @@ func GetFakerDirectoryOnDesktop() (string, error) {
 		slog.Info("GetFakerDirectoryOnDesktop:: The faker directory exists. will create a new faker directory", "dir", dir)
 		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", constants.FakerDir, RandomString(5)))
 		slog.Info("GetFakerDirectoryOnDesktop:: The faker directory exists. will create a new faker directory, New Directory Path", "newDir", dir)
-		
+
 	case false:
 		fmt.Println("Directory does not exist. Go ahead , create a new one")
 		slog.Info("GetFakerDirectoryOnDesktop:: Directory does not exist. Will create a new one!")
@@ -208,10 +208,10 @@ func ChromeDefaultPaths() (exePath, profileDir string) {
 // prompting the user to close it first.
 func WaitForChromeToClose() {
 	if !isChromeRunning() {
-		slog.Info("Chrome is not running, we are good to go, will proceed ahead!")
+		slog.Info("WaitForChromeToClose:: Chrome is not running, we are good to go, will proceed ahead!")
 		return
 	} else {
-		slog.Info("Chrome is currently Running. Will ask the user to close it")
+		slog.Info("WaitForChromeToClose:: Chrome is currently Running. Will ask the user to close it")
 	}
 	fmt.Println()
 	fmt.Println("WARNING: Google Chrome is currently running.")
@@ -219,7 +219,7 @@ func WaitForChromeToClose() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	if err := scanner.Err(); err != nil {
-		slog.Error("We tried closing the browser but we failed.", "Error", err)
+		slog.Error("WaitForChromeToClose:: We tried closing the browser but we failed.", "Error", err)
 		log.Fatal("Please close the Chrome browser. We tried and we failed. Apologies. PLease run this script after! If the issues persists, please try restarting your machine")
 	}
 
@@ -227,11 +227,11 @@ func WaitForChromeToClose() {
 		scanner.Scan()
 		if !isChromeRunning() {
 			fmt.Println("Chrome is now closed. Proceeding...")
-			slog.Info("Chrome is now closed. Proceeding...")
+			slog.Info("WaitForChromeToClose:: Chrome is now closed. Proceeding...")
 			return
 		}
 		fmt.Println("Chrome is still running. Please close it and press Enter again.")
-		slog.Info("Chrome is still running. PLease close it!")
+		slog.Info("WaitForChromeToClose:: Chrome is still running. PLease close it!")
 	}
 }
 
@@ -286,67 +286,111 @@ func DownloadEicar() (string, error) {
 }
 
 func ExtractAndRunEicar(zipPath, destDir string, virusModel models.VirusConfig) {
+	slog.Debug("ExtractAndRunEicar:: Info", "zippath", zipPath, "destdir", destDir, "model", virusModel)
+
 	checkedPath, err := extractZip(zipPath, destDir, "Extracting EICAR")
+	if err != nil {
+		slog.Error("ExtractAndRunEicar:: ExtractZip error", "error", err)
+		log.Fatalf("An error happened while extracting the zip, error → %s\n", err)
+	} else {
+		slog.Info("ExtractAndRunEicar:: No errors were reported while extracting zip")
+	}
+
 	parentDir := filepath.Dir(filepath.Clean(checkedPath))
-	fmt.Println(parentDir)
+	slog.Info("ExtractAndRunEicar::  ParentDir", "parentDir", parentDir)
+
 	// we create the iso on the desktiop of the current user
 	isoDirPath, err := DesktopPath()
+	slog.Info("ExtractAndRunEicar:: IsoDirPath", "isoDirPath", isoDirPath)
 	if err != nil {
+		slog.Error("ExtractAndRunEicar:: An error happened while getting the IsoDirPath", "error", err, "isoDirPath", isoDirPath)
 		log.Fatalf("An error happened while getting desktop path , error → %s\n", err)
+	} else {
+		slog.Info("ExtractAndRunEicar:: No errors were reported while getting the desktopDir")
 	}
 
 	// check if we need to create a mount drive
 	// we need to do it before execute, otherwise the file may be quarantined when executed by the AV
 	if virusModel.CreateISO == true {
+		slog.Info("ExtractAndRunEicar:: Will create an ISO with the virus")
 		parentDirExists, err := Exists(parentDir)
 		if err != nil {
+			slog.Error("ExtractAndRunEicar:: There was an error while checking if the parentDir exists or not. ", "error", err, "parentDir", parentDir)
 			log.Fatalf("Could not get the user's desktop dir. Error → %s\n", err)
 		}
 		if parentDirExists == false {
+			slog.Info("ExtractAndRunEicar:: ParentDir does not exist.", "parentDirExists", parentDirExists, "parentDir", parentDir)
 			log.Fatal("we were unable to get user's desktop location.")
+		} else {
+			slog.Info("ExtractAndRunEicar:: ParentDirExists ", "parentDirExists", parentDirExists)
 		}
 
 		isoName := fmt.Sprintf("faker_%s.iso", RandomString(5))
+		slog.Info("ExtractAndRunEicar:: Generated Name of the isoName", "isoName", isoName)
 		desktopISOLocation := filepath.Join(isoDirPath, isoName)
+		slog.Info("ExtractAndRunEicar:: DesktopLocation ", "dekstopLocation", desktopISOLocation)
 
 		if err := createISO(parentDir, desktopISOLocation); err != nil {
+			slog.Error("ExtractAndRunEicar:: There was an error creating the ISO", "error", err, "parentDir", parentDir, "desktopISOLocation", desktopISOLocation)
 			log.Fatalf("An error happened while creating ISO, error follows →%s", err)
+		} else {
+			slog.Info("ExtractAndRunEicar:: iso was created successfully")
 		}
 		// now check if we need to mount it too
 		if virusModel.MountISO == true {
+			slog.Info("ExtractAndRunEicar:: Will mount the generated ISO")
 			mountPoint, err := mountISO(desktopISOLocation)
-
 			if err != nil {
+				slog.Error("ExtractAndRunEicar:: There was an error mounting the generated ISO", "error", err, "desktopISOLocation", desktopISOLocation)
 				log.Fatalf("Could not mount the ISO, error is → %s\n", err)
+			} else {
+				slog.Info("ExtractAndRunEicar:: Successfully mounted the ISO", "mountpoint", mountPoint)
 			}
 			fmt.Printf("Mounted the ISO on %s\n", mountPoint)
 		} else {
+			slog.Info("ExtractAndRunEicar:: User has not configured to mount the ISO, hence will not do so!")
 			fmt.Println("Will not mount the generated ISO!")
 		}
+	} else {
+		slog.Info("ExtractAndRunEicar:: Will not create the ISO as the user has not configured it.")
 	}
 
 	if virusModel.AutoExecute == true {
+		slog.Info("ExtractAndRunEicar:: Will Autoexecute the downloaded virus")
 		// all these things need to happen if execute is set to true
 		// execute from the mounted ISO when available so AV real-time scanning
 		// of the staging directory does not block the run
 		virusFileName := filepath.Join(destDir, constants.EICAR_FILE_NAME)
-		exists, err := Exists(virusFileName)
+		slog.Info("ExtractAndRunEicar :: Generated full path name of the virus", "virusFileName", virusFileName)
 
+		exists, err := Exists(virusFileName)
 		if err != nil {
+			slog.Error("ExtractAndRunEicar:: There was an error while checking for the filename", "errorr", err, "virusFileName", virusFileName)
 			log.Fatalf("There was an error while checking for the existing of the file. The error is → %s", virusFileName)
+		} else {
+			slog.Info("ExtractAndRunEicar:: Successfully checked for the existence of the file", "virusFileName", virusFileName)
 		}
 
 		if exists == false {
+			slog.Error("ExtractAndRunEicar:: File does not exist", "virusFileName", virusFileName)
 			log.Fatalf("File does not exist - %s", virusFileName)
+		} else {
+			slog.Info("ExtractAndRunEicar:: File exists", "virusFileName", virusFileName)
 		}
 
 		fmt.Printf("Will execute the virus file now, Virus file is here → %s\n", virusFileName)
+		slog.Info("ExtractAndRunEicar:: Will execute the virus file now", "virusFileName", virusFileName)
 
 		result, err := executeAFile(virusFileName, "")
 		if err != nil {
+			slog.Error("ExtractAndRunEicar:: There was an error while executing the virus file", "error", err)
 			log.Fatalf("There was an error while executing the virus file , error is → %s", err)
+		} else {
+			slog.Info("ExtractAndRunEicar:: virus file was executed successfully", "virusFileName", virusFileName)
 		}
 		fmt.Printf("executioon result → %s", result)
+	} else {
+		slog.Info("Will not execute the virus as the setting is set to false")
 	}
 }
 
