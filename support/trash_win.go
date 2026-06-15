@@ -4,6 +4,7 @@ package support
 
 import (
 	"fmt"
+	"log/slog"
 	"runtime"
 	"sync"
 	"syscall"
@@ -43,8 +44,10 @@ func MoveToRecycleBin(path string) error {
 	// SHFileOperationW requires a double-null-terminated UTF-16 string.
 	from, err := syscall.UTF16FromString(path)
 	if err != nil {
+		slog.Error("MoveToRecycleBin:: failed to make a syscall.", "error", err, "path", path)
 		return err
 	}
+	slog.Info("MoveToRecycleBin:: syscall succeeded", "path", path)
 	from = append(from, 0) // append second null terminator
 
 	op := shFileOpStructW{
@@ -59,7 +62,9 @@ func MoveToRecycleBin(path string) error {
 	runtime.KeepAlive(from) // prevent GC of from before the syscall completes
 
 	if ret != 0 {
+		slog.Error("MoveToRecycleBin:: SHFileOperationW failed", "errorcode", ret)
 		return fmt.Errorf("SHFileOperationW failed with code %d", ret)
 	}
+	slog.Info("MoveToRecycleBin:: MoveToRecycleBin happened successfully and no issues were reported")
 	return nil
 }
