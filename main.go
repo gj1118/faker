@@ -270,7 +270,7 @@ func generateChromeCookies(profileDir string, count int) (int, error) {
 			slog.Error("insert cookies failed ", "error", err)
 			return inserted, fmt.Errorf("insert cookie: %w", err)
 		} else {
-			slog.Info("Cookie informated was saved in the database")
+			slog.Info("Cookie information was saved in the database")
 		}
 		inserted++
 	}
