@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,46 +13,6 @@ import (
 	"github.com/diskfs/go-diskfs/filesystem"
 	"github.com/diskfs/go-diskfs/filesystem/iso9660"
 )
-
-func addDirToISO(fs filesystem.FileSystem, srcDir string) error {
-	return filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(srcDir, path)
-		if err != nil {
-			return err
-		}
-
-		isoPath := "/" + filepath.ToSlash(relPath)
-		if isoPath == "/." || isoPath == "/" {
-			return nil
-		}
-
-		if info.IsDir() {
-			return fs.Mkdir(isoPath)
-		}
-
-		// Copy file content
-		src, err := os.Open(path)
-		if err != nil {
-			return fmt.Errorf("open %s: %w", path, err)
-		}
-		defer src.Close()
-
-		dst, err := fs.OpenFile(isoPath, os.O_CREATE|os.O_RDWR)
-		if err != nil {
-			return fmt.Errorf("create ISO file %s: %w", isoPath, err)
-		}
-
-		_, err = io.Copy(dst, src)
-		if closeErr := dst.Close(); closeErr != nil && err == nil {
-			err = closeErr
-		}
-		return err
-	})
-}
 
 func createISO(srcDir, isoPath string) error {
 	fmt.Printf("📦 Scanning folder: %s\n", srcDir)
@@ -194,10 +153,10 @@ func calcDirSize(path string) (int64, error) {
 
 
 func parseMacMountPoint(output string) string {
-	for _, line := range strings.Split(output, "\n") {
-		fields := strings.Fields(line)
+	for line := range strings.SplitSeq(output, "\n") {
+		fields := strings.FieldsSeq(line)
 		// The mount point is the field starting with /Volumes/
-		for _, f := range fields {
+		for f := range fields {
 			if strings.HasPrefix(f, "/Volumes/") {
 				return f
 			}

@@ -23,13 +23,19 @@ import (
 )
 
 func Exists(path string) (bool, error) {
+	slog.Info("Exists:: Will check if the path exists or not", "path", path)
 	_, err := os.Stat(path)
 	if err == nil {
+		slog.Error("Exists:: There as an error while checking for path", "error", err)
 		return true, nil
+	} else {
+		slog.Info("Exists:: Path checked passed without any errors")
 	}
 	if errors.Is(err, fs.ErrNotExist) {
+		slog.Error("Exists:: Path does not exist", "path", path)
 		return false, nil
 	}
+	slog.Info("Exists:: File check path completed without any errors")
 	return false, err
 }
 
@@ -92,47 +98,63 @@ func RandomTimestamp() string {
 // desktopPath returns the current user's desktop directory across platforms.
 func DesktopPath() (string, error) {
 	home, err := os.UserHomeDir()
+	slog.Info("DesktopPath:: trying to get the user's desktop dir")
 	if err != nil {
+		slog.Error("DesktopPath:: There was an error while getting the user's homedir", "error", err)
 		return "", err
+	} else {
+		slog.Info("DesktopPath:: There was no error while getting the user's homedir")
 	}
 	switch runtime.GOOS {
 	case "windows":
 		// Respect a custom desktop location set via the registry / shell folder env.
 		if p := os.Getenv("USERPROFILE"); p != "" {
+			slog.Info("DesktopPath::Windows:Custom desktop location ", "customdesktoplocation", filepath.Join(p, "Desktop"))
 			return filepath.Join(p, "Desktop"), nil
 		}
+		slog.Info("DesktopPath::windows:Desktop location", "path", filepath.Join(home, "Desktop"))
 		return filepath.Join(home, "Desktop"), nil
 	default:
 		// macOS and Linux both use ~/Desktop by convention.
+		slog.Info("DesktopPath::Mac_LINUX:Desktop location", "path", filepath.Join(home, "Desktop"))
 		return filepath.Join(home, "Desktop"), nil
 	}
 }
 
 func GetFakerDirectoryOnDesktop() (string, error) {
 	desktopDir, err := DesktopPath()
+	slog.Info("GetFakerDirectoryOnDesktop:: Desktop Directory", "desktopdir", desktopDir)
+
 	if err != nil {
+		slog.Error("GetFakerDirectoryOnDesktop:: There was an error while getting the desktop directory", "error", err)
 		return "", fmt.Errorf("resolve desktop: %w", err)
 	}
 
 	dir := filepath.Join(desktopDir, constants.FakerDir)
+	slog.Info("GetFakerDirectoryOnDesktop:: Complete Path", "completePath", dir)
 	dirExists, err := Exists(dir)
 
 	if err != nil {
+		slog.Error("GetFakerDirectoryOnDesktop:: There was an error while checking if the dir exists or not", "error", err, "dir", dir)
 		fmt.Println("It seems that there was an error while checking if the directory exists or not. Bailing out. ")
 		os.Exit(1)
-
 	}
 
 	switch dirExists {
 	case true:
 		fmt.Println("Directory already exists. Will create a new dir with similar name")
+		slog.Info("GetFakerDirectoryOnDesktop:: The faker directory exists. will create a new faker directory", "dir", dir)
 		dir = filepath.Join(desktopDir, fmt.Sprintf("%s_%s", constants.FakerDir, RandomString(5)))
+		slog.Info("GetFakerDirectoryOnDesktop:: The faker directory exists. will create a new faker directory, New Directory Path", "newDir", dir)
+		
 	case false:
 		fmt.Println("Directory does not exist. Go ahead , create a new one")
+		slog.Info("GetFakerDirectoryOnDesktop:: Directory does not exist. Will create a new one!")
 	}
 
 	// everyting was good, now go ahead and create the dir
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		slog.Error("GetFakerDirectoryOnDesktop:: There was an error while creating a new faker directory.", "error", err, "path", dir)
 		return "", err
 	}
 	return dir, nil
@@ -253,10 +275,13 @@ func RunWithoutBaseDir(label string, enabled bool, count int, fn func(int) (int,
 
 func DownloadEicar() (string, error) {
 	destDir := os.TempDir()
+	slog.Info("DownloadEicar:: Download Directory", "directory", destDir)
 	zipPath := filepath.Join(destDir, "eicar_com.zip")
 	if err := downloadFile(constants.EICAR_Url, zipPath, "Downloading EICAR"); err != nil {
+		slog.Error("DownloadEicar:: There was an error while downloading file. Error follows", "error", err, "zippath", zipPath)
 		return "", err
 	}
+	slog.Info("DownloadEicar:: Zip path", "zippath", zipPath)
 	return zipPath, nil
 }
 
@@ -345,14 +370,17 @@ func isChromeRunning() bool {
 }
 
 func downloadFile(url, destPath, label string) error {
+	slog.Info("DownloadFile:: download a file", "url", url, "destpath", destPath, "label", label)
 	resp, err := http.Get(url)
 	if err != nil {
+		slog.Error("DownloadFile:: Error was encountered while requesting url", "error", err, "url", url)
 		return err
 	}
 	defer resp.Body.Close()
 
 	out, err := os.Create(destPath)
 	if err != nil {
+		slog.Error("DownloadFile:: Error was encountered while creating file", "error", err, "destpath", destPath)
 		return err
 	}
 	defer out.Close()
@@ -371,16 +399,20 @@ func downloadFile(url, destPath, label string) error {
 			break
 		}
 		if err != nil {
+			slog.Error("DownloadFile:: Error was encountered while downloading", "error", err)
 			return err
 		}
 	}
+	slog.Info("DownloadFile:: No errors were encountered and the file was downloaded successfully", "destdir", destPath)
 	fmt.Println()
 	return nil
 }
 
 func extractZip(zipPath, destDir, label string) (string, error) {
+	slog.Info("ExtractZip:: Inpur parameters", "zipPath", zipPath, "destDir", destDir, "label", label)
 	r, err := zip.OpenReader(zipPath)
 	if err != nil {
+		slog.Error("ExtractZIP:: Error was encountered while extracting zip (zip.OpenReader)", "error", err)
 		return "", err
 	}
 	defer r.Close()
@@ -393,10 +425,12 @@ func extractZip(zipPath, destDir, label string) (string, error) {
 		dstPath := filepath.Join(destDir, f.Name)
 		dst, err := os.Create(dstPath)
 		if err != nil {
+			slog.Error("ExtractZIP:: Error was encountered while extracting zip (os.create)", "error", err)
 			return "", err
 		}
 		src, err := f.Open()
 		if err != nil {
+			slog.Error("ExtractZIP:: Error was encountered while extracting zip (f.open)", "error", err)
 			dst.Close()
 			return "", err
 		}
@@ -406,14 +440,19 @@ func extractZip(zipPath, destDir, label string) (string, error) {
 		lastPath = dstPath
 	}
 	fmt.Println()
+	slog.Info("ExtractZip:: Just before returning", "lastpath", lastPath)
 	return lastPath, nil
 }
 
 func executeAFile(path string, args ...string) (string, error) {
+	slog.Info("ExecuteAFile::going to execute a file", "file", path, "args", args)
 	cmd := exec.Command(path, args...)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		slog.Error("executeAFile:: There was an error while executing a file", "error", err, "path", path, "args", args)
 		return string(output), fmt.Errorf("execution failed: %w", err)
+	} else {
+		slog.Info("Command was executed successfully", "output", string(output))
 	}
 	return string(output), nil
 }
