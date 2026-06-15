@@ -429,13 +429,20 @@ func generateFirewallTraffic(callTimes int) (int, error) {
 }
 
 func executeVirus(_ int) (int, error) {
-	downloadedPath, _ := helpers.DownloadEicar()
+	downloadedPath, err := helpers.DownloadEicar()
+	if err != nil {
+		slog.Error("There was an error while downloading the virus.", "error", err)
+		log.Fatalf("There was an error while downloading the virus. The error is → %s\n", err)
+	} else {
+		slog.Info("executeVirus - The virus was downloaded succesfullly")
+	}
+
 	slog.Info("Downloaded Virus Path", "Path", downloadedPath)
 
 	tempDirectory := path.Join(os.TempDir(), fmt.Sprintf("eicar-%s", helpers.RandomString(10)))
 	slog.Info("TempDirectory Path", "Path", tempDirectory)
 
-	err := os.Mkdir(tempDirectory, 0755)
+	err = os.Mkdir(tempDirectory, 0755)
 	if err != nil {
 		slog.Error("There was an error while creating the temp directory.", "error", err)
 		log.Fatalf("There was an error while creating the temp directory. The error is → %s\n", err)
@@ -658,7 +665,7 @@ func main() {
 	total += helpers.RunWithoutBaseDir("Trash / Recycle Bin files", cfg.Trash.Enabled, cfg.Trash.Count, generateTrashFiles)
 	total += helpers.RunWithoutBaseDir("Shredder temp files", cfg.Shredder.Enabled, cfg.Shredder.TempFiles.Count, generateShredderTempFiles)
 	total += helpers.RunWithoutBaseDir("Firewall traffic generation", cfg.Firewall.Enabled, cfg.Firewall.CallTimes, generateFirewallTraffic)
-	total += helpers.RunWithoutBaseDir("Execute Virus ", cfg.Virus.Enabled, 0, executeVirus)
+	total += helpers.RunWithoutBaseDir("Virus related asks ", cfg.Virus.Enabled, 0, executeVirus)
 
 	fmt.Printf("\n✓ Total entries / files generated: %d\n", total)
 	fmt.Printf("✓ Chrome data written to: %s\n", profileDir)
