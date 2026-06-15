@@ -68,3 +68,5 @@ var ShredderFileSizes = []int{
 }
 
  const LOG_FILE_NAME = "faker.log"
+
+ const Vol_Name = "FakeVolume"

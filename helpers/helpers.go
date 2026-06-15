@@ -90,6 +90,14 @@ func RandomString(n int) string {
 	return string(b)
 }
 
+func RandomSuffix() string {
+	b := make([]byte, 4)
+	f, _ := os.Open("/dev/urandom")
+	defer f.Close()
+	f.Read(b)
+	return fmt.Sprintf("%x", b)
+}
+
 func RandomTimestamp() string {
 	t := time.Now().Add(-time.Duration(rand.Intn(30*24)) * time.Hour)
 	return t.Format("2006-01-02T15:04:05Z")
