@@ -260,7 +260,7 @@ func DownloadEicar() (string, error) {
 	return zipPath, nil
 }
 
-func ExtractAndRunEicar(zipPath, destDir string, virusModel models.VirusConfig) (string, error) {
+func ExtractAndRunEicar(zipPath, destDir string, virusModel models.VirusConfig) {
 	checkedPath, err := extractZip(zipPath, destDir, "Extracting EICAR")
 	parentDir := filepath.Dir(filepath.Clean(checkedPath))
 	fmt.Println(parentDir)
@@ -323,7 +323,6 @@ func ExtractAndRunEicar(zipPath, destDir string, virusModel models.VirusConfig) 
 		}
 		fmt.Printf("executioon result → %s", result)
 	}
-	return checkedPath, err
 }
 
 // local helpers

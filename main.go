@@ -372,7 +372,7 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 	for range count {
 		base := constants.HistoryURLs[rand.Intn(len(constants.HistoryURLs))]
 		slog.Info("Chrome History Base URL", "base", base)
-		
+
 		url := fmt.Sprintf("%s%s&t=%d", base, helpers.RandomString(12), rand.Intn(99999))
 		slog.Info("Chrome History URL", "url", url)
 		visitTime := helpers.ToWebKitTime(now.Add(-time.Duration(rand.Intn(30*24)) * time.Hour))
@@ -381,7 +381,7 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 			VALUES (?, 'Tracking Request', ?, 0, ?, 0)`,
 			url, rand.Intn(10)+1, visitTime)
 		if err != nil {
-			slog.Error("An error happened while inserting url","error", err)
+			slog.Error("An error happened while inserting url", "error", err)
 			return inserted, fmt.Errorf("insert url: %w", err)
 		} else {
 			slog.Info("Inserting url was successful")
@@ -406,6 +406,7 @@ func generateChromeHistory(profileDir string, count int) (int, error) {
 func generateFirewallTraffic(callTimes int) (int, error) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	n := 0
+	slog.Info("Firewall Sites", "sites", firewallSites)
 	for _, site := range firewallSites {
 		for i := range callTimes {
 			resp, err := client.Get("http://" + site)
@@ -415,39 +416,63 @@ func generateFirewallTraffic(callTimes int) (int, error) {
 			}
 			err = resp.Body.Close()
 			if err != nil {
+				slog.Error("An error occured while generating firewall traffic", "error", err)
 				log.Fatalf("An error occured while generating firewall traffic : %v\n", err)
+			} else {
+				slog.Info("No issues with firewall traffic")
 			}
 			n++
 		}
 	}
+	slog.Info("Total firewall attempts ", "firewall_attempts", n)
 	return n, nil
 }
 
 func executeVirus(_ int) (int, error) {
 	downloadedPath, _ := helpers.DownloadEicar()
+	slog.Info("Downloaded Virus Path", "Path", downloadedPath)
+
 	tempDirectory := path.Join(os.TempDir(), fmt.Sprintf("eicar-%s", helpers.RandomString(10)))
+	slog.Info("TempDirectory Path", "Path", tempDirectory)
+
 	err := os.Mkdir(tempDirectory, 0755)
 	if err != nil {
+		slog.Error("There was an error while creating the temp directory.", "error", err)
 		log.Fatalf("There was an error while creating the temp directory. The error is → %s\n", err)
+	} else {
+		slog.Info("executeVirus - The temp directory was created succesfullly")
 	}
 	exists, err := helpers.Exists(tempDirectory)
 
 	if err != nil {
+		slog.Error("There was an error while checking for tempdir", "error", err)
 		log.Fatal("There was an error while checking for tempdir. Please try again later")
+	} else {
+		slog.Info("Tempdir was obtained successfully", "exists", exists)
 	}
 
 	if exists == false {
+		slog.Error("tempdir does not exist", "tempdir_path", tempDirectory)
 		log.Fatal("TempDir does not exist")
+	} else {
+		slog.Info("tempdir exists", "tempdir_path", tempDirectory)
 	}
 
-	_, _ = helpers.ExtractAndRunEicar(downloadedPath, tempDirectory, config.Virus)
+	slog.Info("Going to extract and run the Virus")
+	helpers.ExtractAndRunEicar(downloadedPath, tempDirectory, config.Virus)
+	slog.Info("Executed successfully the  extract and run the Virus feature")
+
 	return 0, nil
 }
 
 func generateTempFiles(count int) (int, error) {
 	tempFilesDir := filepath.Join(config.Output.BaseDir, "Tracker_remover_tempFiles")
+	slog.Info("Generateed TempFile Dir", "tempFilesDir", tempFilesDir)
 	if err := os.MkdirAll(tempFilesDir, 0755); err != nil {
+		slog.Error("An error happened while creating the tempDirFile", "error", err)
 		return 0, err
+	} else {
+		slog.Info("TempFileDir was generated successfully")
 	}
 
 	for i := range count {
@@ -457,25 +482,41 @@ func generateTempFiles(count int) (int, error) {
 			helpers.PickDomain(), helpers.RandomString(24), helpers.RandomString(16), helpers.RandomTimestamp(), helpers.RandomString(128),
 		)
 		if err := os.WriteFile(filepath.Join(tempFilesDir, fmt.Sprintf(pattern, i)), []byte(content), 0644); err != nil {
+			slog.Error("An error was encountered while writing file", "error", err)
 			return i, err
+		} else {
+			generatedFilePath := filepath.Join(tempFilesDir, fmt.Sprintf(pattern, i))
+			slog.Info("Successfully wrote the file", "fileinfo", generatedFilePath)
 		}
 	}
+	slog.Info("Generated temp files", "count", count)
 	return count, nil
 }
 
 func generateRegistryEntries(count int) (int, error) {
 	dir := filepath.Join(config.Output.BaseDir, "Registry")
+	slog.Info("Registry Folder", "registry", dir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		slog.Error("There was an error creating regitry folder", "error", err)
 		return 0, err
+	} else {
+		slog.Info("Registry folder was created successfully.", "path", dir)
 	}
-	f, err := os.Create(filepath.Join(dir, "fake_registry_trackers.reg"))
+	registryFilePath := filepath.Join(dir, "fake_registry_trackers.reg")
+	f, err := os.Create(registryFilePath)
 	if err != nil {
+		slog.Error("Error creating registry file.", "error", err)
 		return 0, err
+	} else {
+		slog.Info("Successfully created the registry file.", "path", registryFilePath)
 	}
 
 	defer func() {
 		if err := f.Close(); err != nil {
+			slog.Error("An error was encountered, while closing the registry file", "error", err)
 			log.Fatalf("An error happened while writing registry file entries. Error → %v", err)
+		} else {
+			slog.Info("No errors were encountered while closing the regisstry file")
 		}
 	}()
 
@@ -488,26 +529,39 @@ func generateRegistryEntries(count int) (int, error) {
 		_, _ = fmt.Fprintf(f, "\"last_seen\"=\"%s\"\n", helpers.RandomTimestamp())
 		_, _ = fmt.Fprintf(f, "\"visit_count\"=dword:%08x\n\n", rand.Intn(9999))
 	}
+
+	slog.Info("Registry File final", "count", count)
 	return count, nil
 }
 
 func generateShredderTempFiles(count int) (int, error) {
 	dir := filepath.Join(config.Output.BaseDir, "Shredder")
+	slog.Info("Shredder file path", "path", dir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
+		slog.Error("Could not create the shredder file path", "error", err)
 		return 0, err
+	} else {
+		slog.Info("Successfully created the file shredder path")
 	}
 
 	exts := []string{".tmp", ".dat", ".bin", ".bak", ".log"}
 
 	for i := range count {
 		size := constants.ShredderFileSizes[rand.Intn(len(constants.ShredderFileSizes))]
+		slog.Info("File size", "shredderfilesize", size)
 		ext := exts[rand.Intn(len(exts))]
+		slog.Info("File extension", "shredderfileextension", ext)
 		name := fmt.Sprintf("shred_%s_%d%s", helpers.RandomString(8), i, ext)
+		slog.Info("File Name", "shredderfilename", name)
 		fpath := filepath.Join(dir, name)
+		slog.Info("File Path", "shredderfilepath", fpath)
 
 		f, err := os.Create(fpath)
 		if err != nil {
+			slog.Error("An error encountered while creating shredder file", "error", err)
 			return i, err
+		} else {
+			slog.Info("Shredder file was created successfully")
 		}
 
 		// Write random binary data in 4 KB chunks to avoid large allocations.
@@ -526,9 +580,13 @@ func generateShredderTempFiles(count int) (int, error) {
 			remaining -= n
 		}
 		if err = f.Close(); err != nil {
+			slog.Error("An error occured while closing the shredder files", "error", err)
 			log.Fatalf("An error occured while closing the files. Error → %v\n", err)
+		} else {
+			slog.Info("Succcessfully closing the files")
 		}
 	}
+	slog.Info("Shredder count", "count", count)
 	return count, nil
 }
 
