@@ -391,10 +391,11 @@ func ExtractAndRunEicar(zipPath, destDir string, virusModel models.VirusConfig) 
 
 		result, err := executeAFile(virusFileName, "")
 		if err != nil {
+			// we were unable to execute the file and rightfully so, since this is a fake virus. It should have been caught by the system 
 			slog.Error("ExtractAndRunEicar:: There was an error while executing the virus file", "error", err)
-			log.Fatalf("There was an error while executing the virus file , error is → %s", err)
+			
 		} else {
-			slog.Info("ExtractAndRunEicar:: virus file was executed successfully", "virusFileName", virusFileName)
+			slog.Warn("ExtractAndRunEicar:: virus file was executed successfully. Check your system!", "virusFileName", virusFileName)
 		}
 		fmt.Printf("executioon result → %s", result)
 	} else {

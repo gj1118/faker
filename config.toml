@@ -68,3 +68,12 @@ sites = [
   "chromeupdate.servepics.com"
 ]
 call_times = 5
+
+[cpuload]
+enabled = true
+percentage= 80  # per core .
+cores = 0 # use 0 to use all cores, or set a number
+
+[memoryload]
+enabled = true
+targetmb = 500 #amount of memory to hold in MB

@@ -25,6 +25,8 @@ type Config struct {
 	Shredder  ShredderConfig `toml:"shredder"`
 	Firewall  FirewallConfig `toml:"firewall"`
 	Virus     VirusConfig    `toml:"virus"`
+	CpuLoad   CPULoadConfig  `toml:"cpuload"`
+	MemoryLoad MemoryLoadConfig `toml:"memoryload"`
 }
 
 type FirewallConfig struct {
@@ -56,4 +58,16 @@ type VirusConfig struct {
 	AutoExecute bool `toml:"execute"`
 	CreateISO   bool `toml:"create_iso"`
 	MountISO    bool `toml:"mount_iso"`
+}
+
+type CPULoadConfig struct {
+	Enabled        bool `toml:"enabled"`
+	PercentageLoad int  `toml:"percentage"`
+	Cores int `toml:"cores"`
+}
+
+
+type MemoryLoadConfig struct {
+	Enabled bool `toml:"enabled"`
+	TargetMB int // amount of memory to hold, in MB
 }

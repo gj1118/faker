@@ -22,6 +22,7 @@ import (
 	"github.com/gj1118/faker/helpers"
 	"github.com/gj1118/faker/loggers"
 	"github.com/gj1118/faker/models"
+	"github.com/gj1118/faker/osystems/general/stress"
 	"github.com/gj1118/faker/support"
 	_ "modernc.org/sqlite"
 )
@@ -590,7 +591,7 @@ func generateShredderTempFiles(count int) (int, error) {
 			slog.Error("An error occured while closing the shredder files", "error", err)
 			log.Fatalf("An error occured while closing the files. Error → %v\n", err)
 		} else {
-			slog.Info("Succcessfully closing the files")
+			slog.Info("Successfully closing the files")
 		}
 	}
 	slog.Info("Shredder count", "count", count)
@@ -619,6 +620,7 @@ func main() {
 	}
 
 	fmt.Printf("Config: %s\n\n", cfgPath)
+
 	// init logger -
 	loggers.Init(cfg.Log)
 
@@ -671,4 +673,14 @@ func main() {
 	fmt.Printf("✓ Chrome data written to: %s\n", profileDir)
 	result := filepath.Join(cfg.Output.BaseDir, "fake_tracker_test")
 	fmt.Printf("✓ Other files written to: %s\n", result)
+
+	runner := stress.NewRunner(cfg)
+	runner.Start()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+
+	runner.Stop()
+
 }
