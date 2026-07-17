@@ -22,6 +22,7 @@ import (
 	"github.com/gj1118/faker/helpers"
 	"github.com/gj1118/faker/loggers"
 	"github.com/gj1118/faker/models"
+	"github.com/gj1118/faker/osystems/general/stress"
 	"github.com/gj1118/faker/support"
 	_ "modernc.org/sqlite"
 )
@@ -29,6 +30,7 @@ import (
 var firewallSites []string
 var cfgPath = "config.toml"
 var config models.Config
+var version = "dev"
 
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
 func chromeExePath(cfg models.ChromeConfig) string {
@@ -590,7 +592,7 @@ func generateShredderTempFiles(count int) (int, error) {
 			slog.Error("An error occured while closing the shredder files", "error", err)
 			log.Fatalf("An error occured while closing the files. Error → %v\n", err)
 		} else {
-			slog.Info("Succcessfully closing the files")
+			slog.Info("Successfully closing the files")
 		}
 	}
 	slog.Info("Shredder count", "count", count)
@@ -600,7 +602,9 @@ func generateShredderTempFiles(count int) (int, error) {
 func main() {
 	fmt.Println()
 	fmt.Println("---Faker init---")
-	fmt.Println("Will setup your TEST system with fake/bad data, so your security solutions might get to work, otherwise what work do they do ? ;) ")
+	fmt.Println("Faker")
+	fmt.Printf("Faker version: %s\n", version)
+	fmt.Println("Faker is a tool to add fake data. You can also use faker to perform basic stress testing!")
 	fmt.Println("*************************")
 	fmt.Println("Looking for a MacOS or a Linux version - we have a binary for those OSes too. Please don't forget to ask!")
 	fmt.Println("*************************")
@@ -619,6 +623,7 @@ func main() {
 	}
 
 	fmt.Printf("Config: %s\n\n", cfgPath)
+
 	// init logger -
 	loggers.Init(cfg.Log)
 
@@ -671,4 +676,14 @@ func main() {
 	fmt.Printf("✓ Chrome data written to: %s\n", profileDir)
 	result := filepath.Join(cfg.Output.BaseDir, "fake_tracker_test")
 	fmt.Printf("✓ Other files written to: %s\n", result)
+
+	runner := stress.NewRunner(cfg)
+	runner.Start()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
+
+	runner.Stop()
+
 }
