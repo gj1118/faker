@@ -30,6 +30,7 @@ import (
 var firewallSites []string
 var cfgPath = "config.toml"
 var config models.Config
+var version = "dev"
 
 // chromeExePath resolves the Chrome executable path, using config override or auto-detection.
 func chromeExePath(cfg models.ChromeConfig) string {
@@ -601,7 +602,9 @@ func generateShredderTempFiles(count int) (int, error) {
 func main() {
 	fmt.Println()
 	fmt.Println("---Faker init---")
-	fmt.Println("Will setup your TEST system with fake/bad data, so your security solutions might get to work, otherwise what work do they do ? ;) ")
+	fmt.Println("Faker")
+	fmt.Printf("Faker version: %s\n", version)
+	fmt.Println("Faker is a tool to add fake data. You can also use faker to perform basic stress testing!")
 	fmt.Println("*************************")
 	fmt.Println("Looking for a MacOS or a Linux version - we have a binary for those OSes too. Please don't forget to ask!")
 	fmt.Println("*************************")
