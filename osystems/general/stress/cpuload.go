@@ -56,10 +56,11 @@ func GenerateLoadOnCPU(ctx context.Context, cpuModel models.CPULoadConfig) {
 	}
 
 	if load >= constants.MAX_CPU_USAGE_WARNING {
-		fmt.Println("You have set the cpuLoad at a very high level. Are you sure ? This might put your system in an unrecoverable state. Press Y to continue!")
+		fmt.Printf("\nYou have set the cpuLoad at a very high level. Are you sure ? This might put your system in an unrecoverable state. Press Y to continue!")
 		var answer string
 		_, err := fmt.Scanln(&answer)
 		if err != nil {
+			fmt.Println("An error happened → ", err)
 			log.Fatal(err)
 		}
 		if answer != "Y" {
@@ -72,11 +73,9 @@ func GenerateLoadOnCPU(ctx context.Context, cpuModel models.CPULoadConfig) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < cores; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			cpuWorker(ctx, load)
-		}()
+		})
 	}
 	wg.Wait() // returns once ctx is cancelled and all workers exit
 }
