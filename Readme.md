@@ -10,6 +10,8 @@ A CLI tool that generates fake system artifacts to stress test machines and vali
 - **Firewall hits** — HTTP requests to configurable high-risk domains
 - **Virus signatures** — EICAR test files (optionally packaged as an ISO and mounted)
 - **Registry entries** — fake entries (Windows only)
+- **CPU Load** — Puts CPU under some stress (configurable)
+- **Memory Load** — Puts Memory under some stress (configurable)
 
 ## Usage
 
