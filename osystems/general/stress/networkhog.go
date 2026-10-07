@@ -16,19 +16,13 @@ import (
 const (
 	// Refactor these into config.toml later.
 
-	DefaultTarget = "127.0.0.1:9000"
-
-	DefaultWorkers = 10
-
+	DefaultTarget      = "127.0.0.1:9000"
+	DefaultWorkers     = 10
 	DefaultPayloadSize = 64 * 1024
-
-	DefaultDuration = 60 * time.Second
-
-	ReadBufferSize = 64 * 1024
-
-	ReportInterval = 1 * time.Second
-
-	MaxWorkers = 1000
+	DefaultDuration    = 60 * time.Second
+	ReadBufferSize     = 64 * 1024
+	ReportInterval     = 1 * time.Second
+	MaxWorkers         = 1000
 )
 
 type Config struct {
